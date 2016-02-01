@@ -10,10 +10,6 @@ If running without GPUs, set the `CPU_ONLY` flag:
 ```bash
 $ CPU_ONLY=1 bootstrap/bootstrap_ubuntu.sh
 ```
-Source `bashrc` to update the environment variables:
-```bash
-$ source ~/.bashrc
-```
 Now you can install the python packages to a virtual environment using `install.sh`:
 ```bash
 $ ./install.sh
