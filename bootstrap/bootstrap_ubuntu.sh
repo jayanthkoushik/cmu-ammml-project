@@ -31,7 +31,7 @@ sudo apt-get -y install oracle-java8-installer
 
 wget ${BAZEL_INSTALLER_URL}
 chmod +x ${BAZEL_VERSION}
-${BAZEL_VERSION} --user
+./${BAZEL_VERSION} --user
 echo "export PATH=\$PATH:$HOME/bin" >> ${PROFILE_FILE}
 rm ${BAZEL_VERSION}
 
