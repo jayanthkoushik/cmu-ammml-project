@@ -19,6 +19,7 @@ pip install --upgrade scipy
 pip install --upgrade keras
 pip install --upgrade cython
 pip install --upgrade h5py
+pip install --upgrade nltk
 if [ -d "${TENSORFLOW_PKG_DIR}" ]; then
     pip install --upgrade \
         ${TENSORFLOW_PKG_DIR}/tensorflow-0.6.0-cp27-none-linux_x86_64.whl
