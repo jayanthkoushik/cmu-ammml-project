@@ -41,13 +41,13 @@ with open(TRANSC_FEATS_FILE, "w") as feats_file:
         feat_vec = []
         for tok in toks:
             if not tok in vocab:
-                if all(c in string.ascii_lowercase for c in tok):
-                    # Ignore non-special words that are not in the
-                    # vocabulary.
-                    continue
-                else:
+                if not all(c in string.ascii_lowercase for c in tok):
+                    # Learn the special words.
                     vocab[tok] = len(vocab)
-            feat_vec.append(vocab[tok])
+            if tok in vocab:
+                feat_vec.append(vocab[tok])
+            else:
+                feat_vec.append(-1)
 
         if len(feat_vec) > max_feat_vec_len:
             max_feat_vec_len = len(feat_vec)
