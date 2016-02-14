@@ -34,7 +34,7 @@ with open(TRANSC_FEATS_FILE, "w") as feats_file:
         score = labels_map[fileId]
         if score <= 2.5:
             score = int(0)
-        elif score >= 5: 
+        elif score >= 5.5: 
             score = int(1)
         else:
             print("Score not extreme for '{}'. Skipping".format(fname))
