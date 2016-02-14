@@ -31,6 +31,14 @@ with open(TRANSC_FEATS_FILE, "w") as feats_file:
         if fileId not in labels_map:
             print("Label not found for '{}'. Skipping.".format(fname))
             continue
+        score = labels_map[fileId]
+        if score <= 2.5:
+            score = int(0)
+        elif score >= 5: 
+            score = int(1)
+        else:
+            print("Score not extreme for '{}'. Skipping".format(fname))
+            continue        
 
         with open(fname) as f:
             transc_str = f.read()
@@ -60,7 +68,6 @@ with open(TRANSC_FEATS_FILE, "w") as feats_file:
             max_feat_vec_len = len(feat_vec)
 
         #Appending score at the beginning of the feature vector
-        score = labels_map[fileId]
         feat_vec.insert(0, score)
 
         print(" ".join(itertools.imap(str, feat_vec)), file=feats_file)
