@@ -5,7 +5,7 @@ from __future__ import print_function
 import glob
 import re
 import itertools
-
+import shelve
 import nltk
 
 
@@ -13,6 +13,7 @@ VOCAB_FILE = "data/vocab.txt"
 TRANSC_RAW_DIR = "data/raw/transc"
 TRANSC_FEATS_FILE = "data/feats/transc.txt"
 BLACKLIST = ["244623.txt", "243646.txt", "181504.txt", "221153.txt"]
+SHELVED_LABEL_FILE = "data/labels.db"
 
 
 with open(VOCAB_FILE) as vf:
@@ -21,13 +22,18 @@ max_feat_vec_len = 0
 feat_vecs_written = 0
 
 with open(TRANSC_FEATS_FILE, "w") as feats_file:
+    labels_map = shelve.open(SHELVED_LABEL_FILE)
     for fname in glob.iglob(TRANSC_RAW_DIR + "/*"):
         if any(fname.endswith(s) for s in BLACKLIST):
             print("Ignoring '{}' (blacklisted)".format(fname))
             continue
+        fileId = fname.split("/")[-1].split(".")[0]
+        if fileId not in labels_map:
+            print("Label not found for '{}'. Skipping.".format(fname))
+            continue
+
         with open(fname) as f:
             transc_str = f.read()
-
         transc_str = transc_str.replace("\r\n", " ")
         transc_str = transc_str.replace("\r\r", " ")
         transc_str = transc_str.replace("\n", " ")
@@ -53,8 +59,13 @@ with open(TRANSC_FEATS_FILE, "w") as feats_file:
         if len(feat_vec) > max_feat_vec_len:
             max_feat_vec_len = len(feat_vec)
 
+        #Appending score at the beginning of the feature vector
+        score = labels_map[fileId]
+        feat_vec.insert(0, score)
+
         print(" ".join(itertools.imap(str, feat_vec)), file=feats_file)
         feat_vecs_written += 1
+    labels_map.close()
 
 print("{} features written".format(feat_vecs_written))
 print("Max feature vector length: {}".format(max_feat_vec_len))
