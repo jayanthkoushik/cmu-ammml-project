@@ -1,11 +1,13 @@
 # coding=utf-8
-# extract_transc_feats.py: extract word features from transcriptions.
+# extract_transc_feats.py: extract word features from transcriptions and
+# persuasiveness from the labels.
 
 from __future__ import print_function
 import glob
 import re
 import itertools
 import shelve
+
 import nltk
 
 
@@ -14,6 +16,7 @@ TRANSC_RAW_DIR = "data/raw/transc"
 TRANSC_FEATS_FILE = "data/feats/transc.txt"
 BLACKLIST = ["244623.txt", "243646.txt", "181504.txt", "221153.txt"]
 SHELVED_LABEL_FILE = "data/labels.db"
+PERS_FIELD_NAME = "Answer.q7_persuasive"
 
 
 with open(VOCAB_FILE) as vf:
@@ -28,17 +31,18 @@ with open(TRANSC_FEATS_FILE, "w") as feats_file:
             print("Ignoring '{}' (blacklisted)".format(fname))
             continue
         fileId = fname.split("/")[-1].split(".")[0]
-        if fileId not in labels_map:
+        try:
+            score = labels_map[fileId][PERS_FIELD_NAME]
+        except KeyError:
             print("Label not found for '{}'. Skipping.".format(fname))
             continue
-        score = labels_map[fileId]
         if score <= 2.5:
-            score = int(0)
-        elif score >= 5.5: 
-            score = int(1)
+            score = 0
+        elif score >= 5.5:
+            score = 1
         else:
             print("Score not extreme for '{}'. Skipping".format(fname))
-            continue        
+            continue
 
         with open(fname) as f:
             transc_str = f.read()
@@ -67,7 +71,7 @@ with open(TRANSC_FEATS_FILE, "w") as feats_file:
         if len(feat_vec) > max_feat_vec_len:
             max_feat_vec_len = len(feat_vec)
 
-        #Appending score at the beginning of the feature vector
+        # Appending score at the beginning of the feature vector.
         feat_vec.insert(0, score)
 
         print(" ".join(itertools.imap(str, feat_vec)), file=feats_file)
