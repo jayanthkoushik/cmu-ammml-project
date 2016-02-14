@@ -64,9 +64,9 @@ with open(TRANSC_FEATS_FILE, "w") as feats_file:
         feat_vec = []
         for tok in toks:
             if tok in vocab:
-                feat_vec.append(vocab[tok])
+                feat_vec.append(1 + vocab[tok])
             else:
-                feat_vec.append(len(vocab))
+                feat_vec.append(1 + len(vocab))
 
         if len(feat_vec) > max_feat_vec_len:
             max_feat_vec_len = len(feat_vec)
