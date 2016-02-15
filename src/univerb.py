@@ -3,6 +3,7 @@
 
 from __future__ import print_function
 import sys
+import argparse
 
 import numpy as np
 from keras.preprocessing import sequence
@@ -18,10 +19,15 @@ FEATS_FILE = "data/feats/transc.txt"
 EMBEDDING_SIZE = 128
 HIDDEN_LAYER_SIZE = 128
 DROPOUT_PROB = 0.5
-BATCH_SIZE = 64
 MAX_FEATS = 1000
 TRAIN_SAMPLES = 200
-EPOCHS = 1
+DEFAULT_EPOCHS = 1
+DEFAULT_BATCH_SIZE = 64
+
+arg_parser = argparse.ArgumentParser()
+arg_parser.add_argument("--epochs", type=int, default=DEFAULT_EPOCHS)
+arg_parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
+args = arg_parser.parse_args()
 
 X = []
 y = []
@@ -57,10 +63,10 @@ model.compile(optimizer=Adam(), loss="binary_crossentropy",
               class_mode="binary")
 print("done")
 
-model.fit(X_train, y_train, batch_size=BATCH_SIZE, nb_epoch=EPOCHS,
+model.fit(X_train, y_train, batch_size=args.batch_size, nb_epoch=args.epochs,
           show_accuracy=True)
 
-_, acc = model.evaluate(X_test, y_test, batch_size=BATCH_SIZE,
+_, acc = model.evaluate(X_test, y_test, batch_size=args.batch_size,
                         show_accuracy=True)
 print("Test accuracy: {}".format(acc))
 
