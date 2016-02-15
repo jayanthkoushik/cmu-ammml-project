@@ -58,7 +58,7 @@ model.compile(optimizer=Adam(), loss="binary_crossentropy",
 print("done")
 
 model.fit(X_train, y_train, batch_size=BATCH_SIZE, nb_epoch=EPOCHS,
-          validation_data=(X_test, y_test), show_accuracy=True)
+          show_accuracy=True)
 
 _, acc = model.evaluate(X_test, y_test, batch_size=BATCH_SIZE,
                         show_accuracy=True)
