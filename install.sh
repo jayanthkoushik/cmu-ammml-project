@@ -3,7 +3,8 @@
 set -e
 
 DEFAULT_VENV_DIR="env"
-TENSORFLOW_PKG_DIR="${HOME}/tensorflow/pkg"
+TENSORFLOW_DIR="${HOME}/tensorflow"
+TENSORFLOW_PKG_DIR="${TENSORFLOW_DIR}/pkg"
 
 if ! [ ${VENV_DIR+x} ]; then
     VENV_DIR=${DEFAULT_VENV_DIR}
@@ -23,6 +24,7 @@ pip install --upgrade pydot-ng
 if [ -d "${TENSORFLOW_PKG_DIR}"  ]; then
     pip install --upgrade \
         ${TENSORFLOW_PKG_DIR}/tensorflow-0.6.0-cp27-none-linux_x86_64.whl
+    rm -rf ${TENSORFLOW_DIR}
 else
     pip install --upgrade git+git://github.com/Theano/Theano.git
 fi

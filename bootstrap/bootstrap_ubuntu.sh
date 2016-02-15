@@ -60,11 +60,11 @@ if ! [ ${CPU_ONLY+x} ]; then
     if [ ${BACKEND} == "tensorflow" ]; then
         sudo cp ~/${CUDNN_VERSION}/cudnn.h ${CUDA_HOME}/include
         sudo cp ~/${CUDNN_VERSION}/libcudnn* ${CUDA_HOME}/lib64
-        rm -r ~/${CUDNN_VERSION}
+        rm -rf ~/${CUDNN_VERSION}
     else
         sudo cp ~/cuda/include/cudnn.h ${CUDA_HOME}/include
         sudo cp ~/cuda/lib64/libcudnn* ${CUDA_HOME}/lib64
-        rm -r ~/cuda
+        rm -rf ~/cuda
     fi
     sudo chmod a+r ${CUDA_HOME}/lib64/libcudnn*
 fi
