@@ -16,12 +16,16 @@ pip install --upgrade pip
 pip install --upgrade six
 pip install --upgrade numpy
 pip install --upgrade scipy
-pip install --upgrade keras
 pip install --upgrade cython
 pip install --upgrade h5py
 pip install --upgrade nltk
-if [ -d "${TENSORFLOW_PKG_DIR}" ]; then
+pip install --upgrade pydot-ng
+if [ -d "${TENSORFLOW_PKG_DIR}"  ]; then
     pip install --upgrade \
         ${TENSORFLOW_PKG_DIR}/tensorflow-0.6.0-cp27-none-linux_x86_64.whl
+else
+    pip install --upgrade git+git://github.com/Theano/Theano.git
 fi
+pip install --upgrade keras
 pip install --upgrade ipython
+
