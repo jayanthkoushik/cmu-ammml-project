@@ -21,6 +21,7 @@ pip install --upgrade cython
 pip install --upgrade h5py
 pip install --upgrade nltk
 pip install --upgrade pydot-ng
+pip install --upgrade scikit-learn
 if [ -d "${TENSORFLOW_PKG_DIR}"  ]; then
     pip install --upgrade \
         ${TENSORFLOW_PKG_DIR}/tensorflow-0.6.0-cp27-none-linux_x86_64.whl
