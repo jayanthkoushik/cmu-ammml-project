@@ -28,6 +28,8 @@ DEFAULT_EPOCHS = 1
 DEFAULT_BATCH_SIZE = 100
 VALIDATION = 10
 VOCAB_SIZE = 7987
+LEARNING_RATE = 0.0001
+GRAD_CLIP = 5
 
 if not os.path.exists(SAVE_PATH):
     os.makedirs(SAVE_PATH)
@@ -57,7 +59,8 @@ model.add(Dropout(DROPOUT_PROB))
 model.add(GRU(output_dim=HIDDEN_LAYER_SIZE, activation="tanh"))
 model.add(Dropout(DROPOUT_PROB))
 model.add(Dense(output_dim=1, activation="sigmoid"))
-model.compile(optimizer=Adam(), loss="binary_crossentropy",
+model.compile(optimizer=Adam(lr=LEARNING_RATE, clipvalue=GRAD_CLIP),
+              loss="binary_crossentropy",
               class_mode="binary")
 print("done")
 
@@ -89,6 +92,8 @@ for train_idx, test_idx in KFold(len(speakers), VALIDATION):
                                      truncating="post")
     X_test = sequence.pad_sequences(X_test, maxlen=MAX_FEATS, padding="post",
                                     truncating="post")
+    print("No. of samples: train: {}, test: {}".format(X_train.shape[0],
+                                                       X_test.shape[0]))
 
     model.set_weights(init_weights)
     model.reset_states()
