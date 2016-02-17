@@ -102,11 +102,15 @@ for train_idx, test_idx in KFold(len(speakers), VALIDATION):
     accs.append(acc)
     print("Fold {} test accuracy: {}".format(fold, acc))
 
-    model.save_weights(os.path.join(SAVE_PATH,
-                                    "fold{}_weights.h5".format(fold)),
+    fold_save_dir = os.path.join(SAVE_PATH, "fold{}".format(fold))
+    if not os.path.exists(fold_save_dir):
+        os.makedirs(fold_save_dir)
+    model.save_weights(os.path.join(fold_save_dir, "weights.h5"),
                        overwrite=True)
     print("\n".join(map(str, history.history["acc"])),
-          file=open(os.path.join(SAVE_PATH, "fold{}_accs.txt".format(fold)), "w"))
+          file=open(os.path.join(fold_save_dir, "accs.txt"), "w"))
+    print("\n".join(map(str, history.history["loss"])),
+          file=open(os.path.join(fold_save_dir, "losses.txt"), "w"))
 
 print("\n".join(map(str, accs)),
       file=open(os.path.join(SAVE_PATH, "accs.txt"), "w"))

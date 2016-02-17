@@ -28,3 +28,5 @@ You're ready to go now. You can access the virtualenv by sourcing its activate s
 ```bash
 $ source <VENV_DIR>/bin/activate
 ```
+To reinstall dependencies, or install new dependencies, simply run the install script again.
+

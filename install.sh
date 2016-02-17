@@ -10,7 +10,9 @@ if ! [ ${VENV_DIR+x} ]; then
     VENV_DIR=${DEFAULT_VENV_DIR}
 fi
 
-python2 -m virtualenv ${VENV_DIR}
+if ! [ -d ${VENV_DIR} ]; then
+    python2 -m virtualenv ${VENV_DIR}
+fi
 source ${VENV_DIR}/bin/activate
 
 pip install --upgrade pip
