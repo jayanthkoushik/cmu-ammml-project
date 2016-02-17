@@ -17,7 +17,6 @@ from keras.optimizers import Adam
 from sklearn.cross_validation import KFold
 
 
-VOCAB_FILE = "data/vocab.txt"
 FEATS_FILE = "data/feats/transc.txt"
 EMBEDDING_SIZE = 256
 HIDDEN_LAYER_SIZE = 256
@@ -49,6 +48,7 @@ model.add(Embedding(input_dim=VOCAB_SIZE, output_dim=EMBEDDING_SIZE,
                     input_length=MAX_FEATS))
 model.add(GRU(output_dim=HIDDEN_LAYER_SIZE, activation="tanh",
               return_sequences=True))
+model.add(Dropout(DROPOUT_PROB))
 model.add(GRU(output_dim=HIDDEN_LAYER_SIZE, activation="tanh"))
 model.add(Dropout(DROPOUT_PROB))
 model.add(Dense(output_dim=1, activation="sigmoid"))
