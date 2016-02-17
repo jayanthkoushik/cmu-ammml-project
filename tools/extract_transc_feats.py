@@ -19,7 +19,7 @@ BLACKLIST = ["244623.txt", "243646.txt", "181504.txt", "221153.txt"]
 SHELVED_LABEL_FILE = "data/labels.db"
 SHELVED_SPEAKER_FILE = "data/speakers.db"
 PERS_FIELD_NAME = "Answer.q7_persuasive"
-WORD_IGNORE_THRESHOLD = 0
+WORD_IGNORE_THRESHOLD = 1
 
 
 def get_toks(fname):

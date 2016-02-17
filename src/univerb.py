@@ -20,14 +20,14 @@ from sklearn.cross_validation import KFold
 
 FEATS_FILE = "data/feats/transc.txt"
 SAVE_PATH = "data/saves/univerb/"
-EMBEDDING_SIZE = 256
-HIDDEN_LAYER_SIZE = 256
+EMBEDDING_SIZE = 64
+HIDDEN_LAYER_SIZE = 64
 DROPOUT_PROB = 0.5
-MAX_FEATS = 1000
+MAX_FEATS = 500
 DEFAULT_EPOCHS = 1
 DEFAULT_BATCH_SIZE = 100
 VALIDATION = 10
-VOCAB_SIZE = 7987
+VOCAB_SIZE = 4873
 LEARNING_RATE = 0.0001
 GRAD_CLIP = 5
 
@@ -53,9 +53,6 @@ sys.stdout.flush()
 model = Sequential()
 model.add(Embedding(input_dim=VOCAB_SIZE, output_dim=EMBEDDING_SIZE,
                     input_length=MAX_FEATS))
-model.add(GRU(output_dim=HIDDEN_LAYER_SIZE, activation="tanh",
-              return_sequences=True))
-model.add(Dropout(DROPOUT_PROB))
 model.add(GRU(output_dim=HIDDEN_LAYER_SIZE, activation="tanh"))
 model.add(Dropout(DROPOUT_PROB))
 model.add(Dense(output_dim=1, activation="sigmoid"))
