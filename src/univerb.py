@@ -21,12 +21,12 @@ from gensim.models import Word2Vec
 
 FEATS_FILE = "data/feats/transc.txt"
 SAVE_PATH = "data/saves/univerb/"
-HIDDEN_LAYER_SIZE = 256
+HIDDEN_LAYER_SIZE = 30
 DROPOUT_PROB = 0.5
 MAX_FEATS = 1000
 DEFAULT_EPOCHS = 1
 DEFAULT_BATCH_SIZE = 100
-VALIDATION = 2
+VALIDATION = 10
 LEARNING_RATE = 0.0001
 GRAD_CLIP = 5
 
@@ -66,9 +66,6 @@ embedding = Embedding(input_dim=len(emb_model.index2word),
 embedding.params = []
 embedding.updates = []
 model.add(embedding)
-model.add(GRU(output_dim=HIDDEN_LAYER_SIZE, activation="tanh",
-              return_sequences=True))
-model.add(Dropout(DROPOUT_PROB))
 model.add(GRU(output_dim=HIDDEN_LAYER_SIZE, activation="tanh"))
 model.add(Dropout(DROPOUT_PROB))
 model.add(Dense(output_dim=1, activation="sigmoid"))
