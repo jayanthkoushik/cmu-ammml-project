@@ -16,18 +16,17 @@ from keras.layers.recurrent import GRU
 from keras.layers.core import Dropout, Dense
 from keras.optimizers import Adam
 from sklearn.cross_validation import KFold
+from gensim.models import Word2Vec
 
 
 FEATS_FILE = "data/feats/transc.txt"
 SAVE_PATH = "data/saves/univerb/"
-EMBEDDING_SIZE = 256
 HIDDEN_LAYER_SIZE = 256
 DROPOUT_PROB = 0.5
 MAX_FEATS = 1000
 DEFAULT_EPOCHS = 1
 DEFAULT_BATCH_SIZE = 100
-VALIDATION = 10
-VOCAB_SIZE = 7987
+VALIDATION = 2
 LEARNING_RATE = 0.0001
 GRAD_CLIP = 5
 
@@ -37,6 +36,7 @@ if not os.path.exists(SAVE_PATH):
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument("--epochs", type=int, default=DEFAULT_EPOCHS)
 arg_parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
+arg_parser.add_argument("--embedding-file", type=str, required=True)
 args = arg_parser.parse_args()
 
 speaker_data_map = defaultdict(list)
@@ -48,11 +48,24 @@ with open(FEATS_FILE) as ff:
         x = map(int, d[2:])
         speaker_data_map[speaker].append((x, y))
 
+print("Generating embedding matrix...", end="")
+sys.stdout.flush()
+emb_model = Word2Vec.load_word2vec_format(args.embedding_file, binary=True)
+emb_matrix = np.zeros([len(emb_model.index2word), emb_model.vector_size])
+for i, w in enumerate(emb_model.index2word):
+    emb_matrix[i, :] = emb_model[w]
+print("done.")
+
 print("Building model...", end="")
 sys.stdout.flush()
 model = Sequential()
-model.add(Embedding(input_dim=VOCAB_SIZE, output_dim=EMBEDDING_SIZE,
-                    input_length=MAX_FEATS))
+embedding = Embedding(input_dim=len(emb_model.index2word),
+                      output_dim=emb_model.vector_size,
+                      input_length=MAX_FEATS,
+                      weights=[emb_matrix])
+embedding.params = []
+embedding.updates = []
+model.add(embedding)
 model.add(GRU(output_dim=HIDDEN_LAYER_SIZE, activation="tanh",
               return_sequences=True))
 model.add(Dropout(DROPOUT_PROB))

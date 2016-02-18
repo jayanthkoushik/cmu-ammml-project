@@ -4,61 +4,45 @@
 
 from __future__ import print_function
 import glob
-import re
 import itertools
 import shelve
-from collections import Counter
+import argparse
+import re
+import sys
 
-import nltk
+from gensim.models import Word2Vec
 
 
-VOCAB_FILE = "data/vocab.txt"
 TRANSC_RAW_DIR = "data/raw/transc"
 TRANSC_FEATS_FILE = "data/feats/transc.txt"
 BLACKLIST = ["244623.txt", "243646.txt", "181504.txt", "221153.txt"]
 SHELVED_LABEL_FILE = "data/labels.db"
 SHELVED_SPEAKER_FILE = "data/speakers.db"
 PERS_FIELD_NAME = "Answer.q7_persuasive"
-WORD_IGNORE_THRESHOLD = 0
+
+arg_parser = argparse.ArgumentParser()
+arg_parser.add_argument("--embedding-file", type=str, required=True)
+args = arg_parser.parse_args()
+
+print("Building word to index map...", end="")
+sys.stdout.flush()
+emb_model = Word2Vec.load_word2vec_format(args.embedding_file, binary=True)
+word2index = {}
+word2index = {w: i+1 for i, w in enumerate(emb_model.index2word)}
+print("done.")
 
 
 def get_toks(fname):
     with open(fname) as f:
         transc_str = f.read()
-    transc_str = transc_str.replace("\r\n", " ")
-    transc_str = transc_str.replace("\r\r", " ")
-    transc_str = transc_str.replace("\n", " ")
-    transc_str = transc_str.replace("-", " ")
-
-    # Convert the transcription to lower case, but make
-    # filler markers (like "umm", "uhh" etc.) upper case.
-    transc_str = transc_str.lower()
-    m = re.findall("[{(]([^\s]*?)[)}]", transc_str)
-    for word in m:
-        transc_str = re.sub("[({{]{}[)}}]".format(word),
-                            " " + word.upper() + " ", transc_str)
-
-    # Construct the feature vector.
-    return nltk.word_tokenize(transc_str)
+    transc_str = re.sub("[^a-zA-Z']", " ", transc_str)
+    return transc_str.split()
 
 
-with open(VOCAB_FILE) as vf:
-    vocab = {line.strip(): i for (i, line) in enumerate(vf)}
 max_feat_vec_len = 0
 feat_vecs_written = 0
 
 with open(TRANSC_FEATS_FILE, "w") as feats_file:
-    word_counter = Counter()
-    for fname in glob.iglob(TRANSC_RAW_DIR + "/*"):
-        toks = get_toks(fname)
-        for tok in toks:
-            if tok in vocab:
-                word_counter[tok] += 1
-    filtered_vocab = {}
-    for tok, c in word_counter.items():
-        if c > WORD_IGNORE_THRESHOLD:
-            filtered_vocab[tok] = len(filtered_vocab) + 1
-
     labels_map = shelve.open(SHELVED_LABEL_FILE)
     speakers_map = shelve.open(SHELVED_SPEAKER_FILE)
     for fname in glob.iglob(TRANSC_RAW_DIR + "/*"):
@@ -82,10 +66,8 @@ with open(TRANSC_FEATS_FILE, "w") as feats_file:
         toks = get_toks(fname)
         feat_vec = []
         for tok in toks:
-            if tok in filtered_vocab:
-                feat_vec.append(filtered_vocab[tok])
-            else:
-                feat_vec.append(1 + len(filtered_vocab))
+            if tok in word2index:
+                feat_vec.append(word2index[tok])
 
         if len(feat_vec) > max_feat_vec_len:
             max_feat_vec_len = len(feat_vec)
@@ -99,7 +81,6 @@ with open(TRANSC_FEATS_FILE, "w") as feats_file:
         feat_vecs_written += 1
     labels_map.close()
 
-print("Filtered vocab size: {}".format(len(filtered_vocab)))
 print("{} features written".format(feat_vecs_written))
 print("Max feature vector length: {}".format(max_feat_vec_len))
 
