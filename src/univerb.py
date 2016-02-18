@@ -27,7 +27,7 @@ MAX_FEATS = 1000
 DEFAULT_EPOCHS = 1
 DEFAULT_BATCH_SIZE = 100
 VALIDATION = 10
-LEARNING_RATE = 0.0001
+LEARNING_RATE = 0.001
 GRAD_CLIP = 5
 
 if not os.path.exists(SAVE_PATH):
@@ -59,13 +59,10 @@ print("done.")
 print("Building model...", end="")
 sys.stdout.flush()
 model = Sequential()
-embedding = Embedding(input_dim=len(emb_model.index2word),
-                      output_dim=emb_model.vector_size,
-                      input_length=MAX_FEATS,
-                      weights=[emb_matrix])
-embedding.params = []
-embedding.updates = []
-model.add(embedding)
+model.add(Embedding(input_dim=len(emb_model.index2word),
+                    output_dim=emb_model.vector_size,
+                    input_length=MAX_FEATS, trainable=False,
+                    weights=[emb_matrix]))
 model.add(GRU(output_dim=HIDDEN_LAYER_SIZE, activation="tanh"))
 model.add(Dropout(DROPOUT_PROB))
 model.add(Dense(output_dim=1, activation="sigmoid"))
