@@ -24,6 +24,7 @@ pip install --upgrade h5py
 pip install --upgrade nltk
 pip install --upgrade pydot-ng
 pip install --upgrade scikit-learn
+pip install --upgrade pillow
 if [ -d "${TENSORFLOW_PKG_DIR}"  ]; then
     pip install --upgrade \
         ${TENSORFLOW_PKG_DIR}/tensorflow-0.6.0-cp27-none-linux_x86_64.whl
@@ -31,6 +32,6 @@ if [ -d "${TENSORFLOW_PKG_DIR}"  ]; then
 else
     pip install --upgrade git+git://github.com/Theano/Theano.git
 fi
-pip install --upgrade keras
+pip install --upgrade git+git://github.com/fchollet/keras.git
 pip install --upgrade ipython
 
