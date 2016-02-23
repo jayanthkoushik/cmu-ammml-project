@@ -1,5 +1,5 @@
 # coding=utf-8
-# uniface.py: unimodal face image based classifier.
+# uniimg.py: unimodal image based classifier.
 
 from __future__ import print_function
 import argparse
@@ -16,29 +16,30 @@ from keras.callbacks import ModelCheckpoint
 from scipy.misc import imread
 
 
-SAVE_PATH = "data/saves/uniface"
 SPLIT_DIR = "data/perssplit"
 SHELVED_LABEL_FILE = "data/labels.db"
 PERS_FIELD_NAME = "Answer.q7_persuasive"
-LEARNING_RATE = 0.0001
 GRAD_CLIP = 3
+DEFAULT_LEARNING_RATE = 0.0001
 DEFAULT_EPOCHS = 1
 DEFAULT_BATCH_SIZE = 100
-
-if not os.path.exists(SAVE_PATH):
-    os.makedirs(SAVE_PATH)
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument("--imdir", type=str, required=True)
 arg_parser.add_argument("--vgg-weights", type=str, required=True)
+arg_parser.add_argument("--save-path", type=str, required=True)
+arg_parser.add_argument("--lr", type=float, default=DEFAULT_LEARNING_RATE)
 arg_parser.add_argument("--epochs", type=int, default=DEFAULT_EPOCHS)
 arg_parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
 args = arg_parser.parse_args()
 
+if not os.path.exists(args.save_path):
+    os.makedirs(args.save_path)
+
 print("Building model...", end="")
 sys.stdout.flush()
 model = VGG16(args.vgg_weights)
-model.compile(optimizer=Adam(lr=LEARNING_RATE, clipvalue=GRAD_CLIP),
+model.compile(optimizer=Adam(lr=args.lr, clipvalue=GRAD_CLIP),
               loss="binary_crossentropy",
               class_mode="binary")
 print("done")
@@ -96,7 +97,7 @@ class BatchGenerator(object):
 train_generator = BatchGenerator(args.batch_size, "train", args.imdir, False)
 val_generator = BatchGenerator(args.batch_size, "val", args.imdir, False)
 ckpt_clbk = ModelCheckpoint(
-    filepath=os.path.join(SAVE_PATH, "checkpoint.h5"),
+    filepath=os.path.join(args.save_path, "checkpoint.h5"),
     verbose=1,
     save_best_only=False
 )
@@ -122,11 +123,17 @@ print("Final accuracy: {}".format(acc))
 
 print("Saving...", end="")
 sys.stdout.flush()
-model.save_weights(os.path.join(SAVE_PATH, "weights.h5"), overwrite=True)
+model.save_weights(os.path.join(args.save_path, "weights.h5"), overwrite=True)
 print("\n".join(map(str, history.history["acc"])),
-      file=open(os.path.join(SAVE_PATH, "accs.txt"), "w"))
+      file=open(os.path.join(args.save_path, "accs.txt"), "w"))
 print("\n".join(map(str, history.history["loss"])),
-      file=open(os.path.join(SAVE_PATH, "losses.txt"), "w"))
-print(acc, file=open(os.path.join(SAVE_PATH, "finalacc.txt"), "w"))
+      file=open(os.path.join(args.save_path, "losses.txt"), "w"))
+summary = {
+    "learning_rate": args.lr,
+    "epochs": args.epochs,
+    "batch_size": args.batch_size,
+    "final_accuracy": acc
+}
+print(summary, file=open(os.path.join(args.save_path, "summary.txt"), "w"))
 print("done.")
 
