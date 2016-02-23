@@ -6,7 +6,7 @@ from __future__ import print_function
 import glob
 import re
 import itertools
-import shelve
+import cPickle
 from collections import Counter
 
 import nltk
@@ -16,8 +16,8 @@ VOCAB_FILE = "data/vocab.txt"
 TRANSC_RAW_DIR = "data/raw/transc"
 TRANSC_FEATS_FILE = "data/feats/transc.txt"
 BLACKLIST = ["244623.txt", "243646.txt", "181504.txt", "221153.txt"]
-SHELVED_LABEL_FILE = "data/labels.db"
-SHELVED_SPEAKER_FILE = "data/speakers.db"
+PICKLED_LABEL_FILE = "data/labels.pickle"
+PICKLED_SPEAKER_FILE = "data/speakers.pickle"
 PERS_FIELD_NAME = "Answer.q7_persuasive"
 WORD_IGNORE_THRESHOLD = 0
 
@@ -59,8 +59,10 @@ with open(TRANSC_FEATS_FILE, "w") as feats_file:
         if c > WORD_IGNORE_THRESHOLD:
             filtered_vocab[tok] = len(filtered_vocab) + 1
 
-    labels_map = shelve.open(SHELVED_LABEL_FILE)
-    speakers_map = shelve.open(SHELVED_SPEAKER_FILE)
+    with open(PICKLED_LABEL_FILE, "rb") as lf:
+        labels_map = cPickle.load(lf)
+    with open(PICKLED_SPEAKER_FILE, "rb") as sf:
+        speakers_map = cPickle.load(sf)
     for fname in glob.iglob(TRANSC_RAW_DIR + "/*"):
         if any(fname.endswith(s) for s in BLACKLIST):
             print("Ignoring '{}' (blacklisted)".format(fname))
@@ -97,7 +99,6 @@ with open(TRANSC_FEATS_FILE, "w") as feats_file:
 
         print(" ".join(itertools.imap(str, feat_vec)), file=feats_file)
         feat_vecs_written += 1
-    labels_map.close()
 
 print("Filtered vocab size: {}".format(len(filtered_vocab)))
 print("{} features written".format(feat_vecs_written))

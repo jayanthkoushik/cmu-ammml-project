@@ -3,13 +3,13 @@
 # for persuasion.
 
 from __future__ import print_function
-import shelve
+import cPickle
 import os
 from collections import defaultdict
 from random import shuffle
 
 
-SHELVED_SPEAKER_FILE = "data/speakers.db"
+PICKLED_SPEAKER_FILE = "data/speakers.pickle"
 TRANSC_FEATS_FILE = "data/feats/transc.txt"
 PERS_VIDS_FILE = "data/pers_vids.txt"
 SPLIT_DIR = "data/perssplit"
@@ -20,10 +20,11 @@ if not os.path.exists(SPLIT_DIR):
     os.makedirs(SPLIT_DIR)
 
 # Generate a map from speakers to their videos.
-speaker_db = shelve.open(SHELVED_SPEAKER_FILE)
+with open(PICKLED_SPEAKER_FILE, "rb") as sf:
+    speakers_dict = cPickle.load(sf)
 speaker_videos_map = defaultdict(list)
-for vid in speaker_db:
-    speaker = speaker_db[vid]
+for vid in speakers_dict:
+    speaker = speakers_dict[vid]
     speaker_videos_map[speaker].append(vid)
 
 # Generate a list of valid speakers.

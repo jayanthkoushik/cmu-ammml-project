@@ -7,7 +7,7 @@ import sys
 import os
 import random
 import glob
-import shelve
+import cPickle
 
 import numpy as np
 from vgg16 import VGG16
@@ -17,7 +17,7 @@ from scipy.misc import imread
 
 
 SPLIT_DIR = "data/perssplit"
-SHELVED_LABEL_FILE = "data/labels.db"
+PICKLED_LABEL_FILE = "data/labels.pickle"
 PERS_FIELD_NAME = "Answer.q7_persuasive"
 GRAD_CLIP = 3
 DEFAULT_LEARNING_RATE = 0.0001
@@ -44,7 +44,8 @@ model.compile(optimizer=Adam(lr=args.lr, clipvalue=GRAD_CLIP),
               class_mode="binary")
 print("done")
 
-labels_map = shelve.open(SHELVED_LABEL_FILE)
+with open(PICKLED_LABEL_FILE, "rb") as lf:
+    labels_map = cPickle.load(lf)
 
 
 class BatchGenerator(object):

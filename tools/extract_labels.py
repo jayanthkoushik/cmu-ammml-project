@@ -1,14 +1,14 @@
 # coding=utf-8
 # extract_labels.py: extract the various traits from the raw data file
-# and write them to a shelved dictionary.
+# and write them to a pickled dictionary.
 
 import csv
-import shelve
+import cPickle
 from collections import defaultdict
 
 
 DATA_FILE = "data/raw/movie_review_main_HIT_all_icmi.csv"
-LABELS_FILE = "data/labels"
+LABELS_FILE = "data/labels.pickle"
 KEY_NAME = "Input.videoLink"
 TRAITS = {
     # The traits to be extracted.
@@ -38,8 +38,7 @@ TRAITS = {
     "Answer.q9_humerous"
 }
 
-labels_map = shelve.open(LABELS_FILE)
-labels_map.clear()
+labels_map = {}
 with open(DATA_FILE, "rb") as dataf:
     reader = csv.DictReader(dataf, delimiter=",")
     for row in reader:
@@ -52,5 +51,7 @@ with open(DATA_FILE, "rb") as dataf:
                 trait_map = defaultdict(int)
             trait_map[trait] += trait_val / 3.0
             labels_map[key] = trait_map
-labels_map.close()
+
+with open(LABELS_FILE, "wb") as lf:
+    cPickle.dump(labels_map, lf, protocol=2)
 

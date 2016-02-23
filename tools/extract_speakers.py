@@ -1,17 +1,19 @@
 # coding=utf-8
-# extract_speakers.py: generate a shelved db mapping
+# extract_speakers.py: generate a pickled dictionary mapping
 # videos to their speakers.
 
-import shelve
+import cPickle
 
 
 DATA_FILE = "data/raw/speakers.txt"
-OUTPUT_FILE = "data/speakers"
+OUTPUT_FILE = "data/speakers.pickle"
 
-speaker_db = shelve.open(OUTPUT_FILE)
+speakers = {}
 with open(DATA_FILE) as df:
     for line in df:
         vid, speaker = line.strip().split("\t")
-        speaker_db[vid] = speaker
-speaker_db.close()
+        speakers[vid] = speaker
+
+with open(OUTPUT_FILE, "wb") as of:
+    cPickle.dump(speakers, of, protocol=2)
 
