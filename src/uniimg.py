@@ -8,6 +8,7 @@ import os
 import random
 import glob
 import cPickle
+from datetime import datetime
 
 import numpy as np
 from vgg16 import VGG16
@@ -34,6 +35,8 @@ arg_parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
 args = arg_parser.parse_args()
 
 if not os.path.exists(args.save_path):
+    date = str(datetime.now().date())
+    args.save_path = os.path.join(args.save_path, date)
     os.makedirs(args.save_path)
 
 print("Building model...", end="")
