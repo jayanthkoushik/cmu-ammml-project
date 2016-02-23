@@ -94,8 +94,9 @@ with open(TRANSC_FEATS_FILE, "w") as feats_file:
 
         # Appending score at the beginning of the feature vector.
         feat_vec.insert(0, score)
-        # Appending speaker at the beginning of the feature vector.
+        # Appending file id and speaker at the beginning of the feature vector.
         feat_vec.insert(0, speakers_map[file_id])
+        feat_vec.insert(0, file_id)
 
         print(" ".join(itertools.imap(str, feat_vec)), file=feats_file)
         feat_vecs_written += 1
