@@ -170,9 +170,9 @@ if args.train == "true":
 
 train_vid_acc, train_im_acc = eval_model(model, args.batch_size, "train",
                                          args.imdir)
+val_vid_acc, val_im_acc = eval_model(model, args.batch_size, "val", args.imdir)
 print("Training: video acc.: {}, image acc.: {}".format(train_vid_acc,
                                                         train_im_acc))
-val_vid_acc, val_im_acc = eval_model(model, args.batch_size, "val", args.imdir)
 print("Validation: video acc.: {}, image acc.: {}".format(val_vid_acc,
                                                           val_im_acc))
 
