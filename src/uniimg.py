@@ -16,7 +16,6 @@ from models.vgg16 import VGG16
 from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint
 from scipy.misc import imread
-from scipy import stats
 
 
 SPLIT_DIR = "data/perssplit"
@@ -26,6 +25,9 @@ GRAD_CLIP = 3
 DEFAULT_LEARNING_RATE = 0.0001
 DEFAULT_EPOCHS = 1
 DEFAULT_BATCH_SIZE = 100
+
+with open(PICKLED_LABEL_FILE, "rb") as lf:
+    labels_map = cPickle.load(lf)
 
 
 def generate_batch(batch_ims):
@@ -91,6 +93,19 @@ class VidBatchGenerator(object):
         return generate_batch(batch_ims)
 
 
+def eval_model_vid(model, batch_size, vid, imdir):
+    """Evaluate a model on a single video."""
+    vid_batch_generator = VidBatchGenerator(batch_size, vid, imdir)
+    num_ims = len(vid_batch_generator._ims)
+    l, acc = model.evaluate_generator(
+        generator=vid_batch_generator,
+        val_samples=num_ims,
+        show_accuracy=True,
+        verbose=1
+    )
+    return l, acc, num_ims
+
+
 def eval_model(model, batch_size, typ, imdir):
     """Evaluate a model. "typ" should be "train", "val", or "test"."""
     vids_file = os.path.join(SPLIT_DIR, "{}.txt".format(typ))
@@ -100,19 +115,12 @@ def eval_model(model, batch_size, typ, imdir):
     correct_ims = 0
     with open(vids_file) as vf:
         for line in vf:
-            vid_batch_generator = VidBatchGenerator(batch_size, line.strip(),
-                                                    imdir)
-            _, acc = model.evaluate_generator(
-                generator=vid_batch_generator,
-                val_samples=len(vid_batch_generator._ims),
-                show_accuracy=True,
-                verbose=1
-            )
+            _, acc, num_ims = eval_model_vid(model, batch_size, line.strip(), imdir)
             total_vids += 1
             if acc >= 0.5:
                 correct_vids += 1
-            total_ims += len(vid_batch_generator._ims)
-            correct_ims += math.floor(acc * len(vid_batch_generator._ims))
+            total_ims += num_ims
+            correct_ims += math.floor(acc * num_ims)
     vid_acc = float(correct_vids) / total_vids
     im_acc = float(correct_ims) / total_ims
     return vid_acc, im_acc
@@ -137,12 +145,9 @@ if __name__=="__main__":
     default_arch_weights = args.default_arch_weights == "true"
     model = VGG16(args.vgg_weights, default_arch_weights)
     model.compile(optimizer=Adam(lr=args.lr, clipvalue=GRAD_CLIP),
-                loss="binary_crossentropy",
-                class_mode="binary")
+                  loss="binary_crossentropy",
+                  class_mode="binary")
     print("done")
-
-    with open(PICKLED_LABEL_FILE, "rb") as lf:
-        labels_map = cPickle.load(lf)
 
     if args.train == "true":
         date = str(datetime.now().date())
@@ -181,11 +186,11 @@ if __name__=="__main__":
         print("Saving...", end="")
         sys.stdout.flush()
         model.save_weights(os.path.join(args.save_path, "weights.h5"),
-                        overwrite=True)
+                           overwrite=True)
         print("\n".join(map(str, history.history["acc"])),
-            file=open(os.path.join(args.save_path, "accs.txt"), "w"))
+              file=open(os.path.join(args.save_path, "accs.txt"), "w"))
         print("\n".join(map(str, history.history["loss"])),
-            file=open(os.path.join(args.save_path, "losses.txt"), "w"))
+              file=open(os.path.join(args.save_path, "losses.txt"), "w"))
         summary = {
             "learning_rate": args.lr,
             "epochs": args.epochs,
