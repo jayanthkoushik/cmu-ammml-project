@@ -44,6 +44,9 @@ print("Building model...", end="")
 sys.stdout.flush()
 default_arch_weights = args.default_arch_weights == "true"
 model = VGG16(args.vgg_weights, default_arch_weights)
+model.compile(optimizer=Adam(lr=args.lr, clipvalue=GRAD_CLIP),
+              loss="binary_crossentropy",
+              class_mode="binary")
 print("done")
 
 with open(PICKLED_LABEL_FILE, "rb") as lf:
@@ -107,7 +110,7 @@ class VidBatchGenerator(object):
 
     def next(self):
         if self._idx >= len(self._ims):
-            raise StopIteration
+            self._idx = 0
         batch_ims = self._ims[self._idx:self._idx+self._batch_size]
         self._idx = self._idx + self._batch_size
         return generate_batch(batch_ims)
@@ -144,13 +147,6 @@ if args.train == "true":
     date = str(datetime.now().date())
     args.save_path = os.path.join(args.save_path, date)
     os.makedirs(args.save_path)
-
-    print("Compiling model...", end="")
-    sys.stdout.flush()
-    model.compile(optimizer=Adam(lr=args.lr, clipvalue=GRAD_CLIP),
-                  loss="binary_crossentropy",
-                  class_mode="binary")
-    print("done")
 
     train_generator = RandomBatchGenerator(args.batch_size, "train",
                                            args.imdir)
