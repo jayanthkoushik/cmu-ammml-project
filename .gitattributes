@@ -1,0 +1,2 @@
+data/saves/unikey/2016-02-23/weights.h5 filter=lfs diff=lfs merge=lfs -text
+data/saves/uniface/2016-02-23/weights.h5 filter=lfs diff=lfs merge=lfs -text
