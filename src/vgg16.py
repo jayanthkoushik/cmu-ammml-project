@@ -8,7 +8,7 @@ from keras.layers.convolutional import Convolution2D, MaxPooling2D,\
     ZeroPadding2D
 
 
-def VGG16(weights_path=None):
+def VGG16(weights_path=None, default_arch_weights=True):
     model = Sequential()
     model.add(ZeroPadding2D((1,1),input_shape=(3,224,224)))
     model.add(Convolution2D(64, 3, 3, activation="relu",trainable=False))
@@ -53,11 +53,14 @@ def VGG16(weights_path=None):
     model.add(Dropout(0.5))
     model.add(Dense(1000, activation="softmax"))
 
-    if weights_path:
+    if weights_path is not None and default_arch_weights is True:
         model.load_weights(weights_path)
 
     model.layers.pop()
     model.add(Dense(1, activation="sigmoid"))
+
+    if weights_path is not None and default_arch_weights is False:
+        model.load_weights(weights_path)
 
     return model
 

@@ -8,6 +8,7 @@ import os
 import random
 import glob
 import cPickle
+import math
 from datetime import datetime
 
 import numpy as np
@@ -15,6 +16,7 @@ from vgg16 import VGG16
 from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint
 from scipy.misc import imread
+from scipy import stats
 
 
 SPLIT_DIR = "data/perssplit"
@@ -32,34 +34,49 @@ arg_parser.add_argument("--save-path", type=str, required=True)
 arg_parser.add_argument("--lr", type=float, default=DEFAULT_LEARNING_RATE)
 arg_parser.add_argument("--epochs", type=int, default=DEFAULT_EPOCHS)
 arg_parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
+arg_parser.add_argument("--train", type=str, choices=["true", "false"],
+                        required=True)
+arg_parser.add_argument("--default-arch-weights", type=str,
+                        choices=["true", "false"], required=True)
 args = arg_parser.parse_args()
-
-if not os.path.exists(args.save_path):
-    date = str(datetime.now().date())
-    args.save_path = os.path.join(args.save_path, date)
-    os.makedirs(args.save_path)
 
 print("Building model...", end="")
 sys.stdout.flush()
-model = VGG16(args.vgg_weights)
-model.compile(optimizer=Adam(lr=args.lr, clipvalue=GRAD_CLIP),
-              loss="binary_crossentropy",
-              class_mode="binary")
+default_arch_weights = args.default_arch_weights == "true"
+model = VGG16(args.vgg_weights, default_arch_weights)
 print("done")
 
 with open(PICKLED_LABEL_FILE, "rb") as lf:
     labels_map = cPickle.load(lf)
 
 
-class BatchGenerator(object):
+def generate_batch(batch_ims):
+    """Generate a batch (X, y) from a list of images."""
+    batch_X = np.zeros((len(batch_ims), 3, 224, 224))
+    batch_y = np.zeros((len(batch_ims), 1))
+    for i, im_file in enumerate(batch_ims):
+        img = imread(im_file).astype("float32")
+        img[:, :, 0] -= 103.939
+        img[:, :, 1] -= 116.779
+        img[:, :, 2] -= 123.68
+        img = img.transpose((2, 0, 1))
+        batch_X[i, :, :, :] = img
 
-    """Generate batches of training data."""
+        file_id = im_file.split("/")[-1].split("_")[0]
+        score = labels_map[file_id][PERS_FIELD_NAME]
+        if score >= 5.5:
+            batch_y[i] = 1
+    return (batch_X, batch_y)
 
-    def __init__(self, batch_size, typ, imdir, sequential):
+
+class RandomBatchGenerator(object):
+
+    """Generate random batches of data."""
+
+    def __init__(self, batch_size, typ, imdir):
         # typ should be "train", "val", or "test".
         self._batch_size = batch_size
         self._ims = []
-        self._sequential = sequential
         self._idx = 0
         vids_file = os.path.join(SPLIT_DIR, "{}.txt".format(typ))
         with open(vids_file) as vf:
@@ -71,73 +88,116 @@ class BatchGenerator(object):
         return self
 
     def next(self):
-        global labels_map
-        if self._sequential:
-            # Iterate over the images in sequence.
-            batch_ims = self._ims[self._idx:self._idx+self._batch_size]
-            self._idx = self._idx + self._batch_size
-            if self._idx >= self._batch_size:
-                self._idx = 0
-        else:
-            # Draw a random sample from the images.
-            batch_ims = random.sample(self._ims, self._batch_size)
-        batch_X = np.zeros((self._batch_size, 3, 224, 224))
-        batch_y = np.zeros((self._batch_size, 1))
-        for i, im_file in enumerate(batch_ims):
-            img = imread(im_file).astype("float32")
-            img[:, :, 0] -= 103.939
-            img[:, :, 1] -= 116.779
-            img[:, :, 2] -= 123.68
-            img = img.transpose((2, 0, 1))
-            batch_X[i, :, :, :] = img
-
-            file_id = im_file.split("/")[-1].split("_")[0]
-            score = labels_map[file_id][PERS_FIELD_NAME]
-            if score >= 5.5:
-                batch_y[i] = 1
-        return (batch_X, batch_y)
+        batch_ims = random.sample(self._ims, self._batch_size)
+        return generate_batch(batch_ims)
 
 
-train_generator = BatchGenerator(args.batch_size, "train", args.imdir, False)
-val_generator = BatchGenerator(args.batch_size, "val", args.imdir, False)
-ckpt_clbk = ModelCheckpoint(
-    filepath=os.path.join(args.save_path, "checkpoint.h5"),
-    verbose=1,
-    save_best_only=False
-)
-history = model.fit_generator(
-    generator=train_generator,
-    samples_per_epoch=len(train_generator._ims),
-    nb_epoch=args.epochs,
-    verbose=1,
-    show_accuracy=True,
-    callbacks=[ckpt_clbk],
-    validation_data=val_generator,
-    nb_val_samples=len(val_generator._ims) // 4, # Use a quarter of the data
-    nb_worker=1
-)
-eval_generator = BatchGenerator(args.batch_size, "val", args.imdir, True)
-_, acc = model.evaluate_generator(
-    generator=eval_generator,
-    val_samples=len(eval_generator._ims),
-    show_accuracy=True,
-    verbose=1
-)
-print("Final accuracy: {}".format(acc))
+class VidBatchGenerator(object):
 
-print("Saving...", end="")
-sys.stdout.flush()
-model.save_weights(os.path.join(args.save_path, "weights.h5"), overwrite=True)
-print("\n".join(map(str, history.history["acc"])),
-      file=open(os.path.join(args.save_path, "accs.txt"), "w"))
-print("\n".join(map(str, history.history["loss"])),
-      file=open(os.path.join(args.save_path, "losses.txt"), "w"))
-summary = {
-    "learning_rate": args.lr,
-    "epochs": args.epochs,
-    "batch_size": args.batch_size,
-    "final_accuracy": acc
-}
-print(summary, file=open(os.path.join(args.save_path, "summary.txt"), "w"))
-print("done.")
+    """Generate batches of data corresponding to a video."""
+
+    def __init__(self, batch_size, vid, imdir):
+        self._batch_size = batch_size
+        self._idx = 0
+        vid_ims = os.path.join(imdir, vid, "*")
+        self._ims = glob.glob(vid_ims)
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        if self._idx >= len(self._ims):
+            raise StopIteration
+        batch_ims = self._ims[self._idx:self._idx+self._batch_size]
+        self._idx = self._idx + self._batch_size
+        return generate_batch(batch_ims)
+
+
+def eval_model(model, batch_size, typ, imdir):
+    """Evaluate a model. "typ" should be "train", "val", or "test"."""
+    vids_file = os.path.join(SPLIT_DIR, "{}.txt".format(typ))
+    total_vids = 0
+    correct_vids = 0
+    total_ims = 0
+    correct_ims = 0
+    with open(vids_file) as vf:
+        for line in vf:
+            vid_batch_generator = VidBatchGenerator(batch_size, line.strip(),
+                                                    imdir)
+            _, acc = model.evaluate_generator(
+                generator=vid_batch_generator,
+                val_samples=len(vid_batch_generator._ims),
+                show_accuracy=True,
+                verbose=1
+            )
+            total_vids += 1
+            if acc >= 0.5:
+                correct_vids += 1
+            total_ims += len(vid_batch_generator._ims)
+            correct_ims += math.floor(acc * len(vid_batch_generator._ims))
+    vid_acc = float(correct_vids) / total_vids
+    im_acc = float(correct_ims) / total_ims
+    return vid_acc, im_acc
+
+
+if args.train == "true":
+    date = str(datetime.now().date())
+    args.save_path = os.path.join(args.save_path, date)
+    os.makedirs(args.save_path)
+
+    print("Compiling model...", end="")
+    sys.stdout.flush()
+    model.compile(optimizer=Adam(lr=args.lr, clipvalue=GRAD_CLIP),
+                  loss="binary_crossentropy",
+                  class_mode="binary")
+    print("done")
+
+    train_generator = RandomBatchGenerator(args.batch_size, "train",
+                                           args.imdir)
+    val_generator = RandomBatchGenerator(args.batch_size, "val", args.imdir)
+    ckpt_clbk = ModelCheckpoint(
+        filepath=os.path.join(args.save_path, "checkpoint.h5"),
+        verbose=1,
+        save_best_only=False
+    )
+    history = model.fit_generator(
+        generator=train_generator,
+        samples_per_epoch=len(train_generator._ims),
+        nb_epoch=args.epochs,
+        verbose=1,
+        show_accuracy=True,
+        callbacks=[ckpt_clbk],
+        validation_data=val_generator,
+        nb_val_samples=len(val_generator._ims) // 4,
+        nb_worker=1
+    )
+
+train_vid_acc, train_im_acc = eval_model(model, args.batch_size, "train",
+                                         args.imdir)
+print("Training: video acc.: {}, image acc.: {}".format(train_vid_acc,
+                                                        train_im_acc))
+val_vid_acc, val_im_acc = eval_model(model, args.batch_size, "val", args.imdir)
+print("Validation: video acc.: {}, image acc.: {}".format(val_vid_acc,
+                                                          val_im_acc))
+
+if args.train == "true":
+    print("Saving...", end="")
+    sys.stdout.flush()
+    model.save_weights(os.path.join(args.save_path, "weights.h5"),
+                       overwrite=True)
+    print("\n".join(map(str, history.history["acc"])),
+        file=open(os.path.join(args.save_path, "accs.txt"), "w"))
+    print("\n".join(map(str, history.history["loss"])),
+        file=open(os.path.join(args.save_path, "losses.txt"), "w"))
+    summary = {
+        "learning_rate": args.lr,
+        "epochs": args.epochs,
+        "batch_size": args.batch_size,
+        "train_vid_acc": train_vid_acc,
+        "train_im_acc": train_im_acc,
+        "val_vid_acc": val_vid_acc,
+        "val_im_acc": val_im_acc
+    }
+    print(summary, file=open(os.path.join(args.save_path, "summary.txt"), "w"))
+    print("done.")
 
