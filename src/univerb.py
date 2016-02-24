@@ -110,6 +110,11 @@ summary = {
     "learning_rate": args.lr,
     "epochs": args.epochs,
     "batch_size": args.batch_size,
+    "vocab_size": VOCAB_SIZE,
+    "embedding_size": EMBEDDING_SIZE,
+    "max_feats": MAX_FEATS,
+    "hidden_layer_size": HIDDEN_LAYER_SIZE,
+    "dropout_prob": DROPOUT_PROB,
     "final_accuracy": acc
 }
 print(summary, file=open(os.path.join(fold_save_dir, "summary.txt"), "w"))
