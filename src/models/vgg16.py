@@ -1,5 +1,5 @@
 # coding=utf-8
-# vgg-16_keras.py: VGGNet implementation by Lorenzo Baraldi.
+# vgg16.py: VGGNet implementation by Lorenzo Baraldi.
 # https://gist.github.com/baraldilorenzo/07d7802847aaad0a35d3
 
 from keras.models import Sequential

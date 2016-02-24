@@ -4,20 +4,14 @@
 from __future__ import print_function
 import sys
 import argparse
-import random
 import os
 from collections import defaultdict
 
 import numpy as np
-
+from models.gru2 import GRU2
 from datetime import datetime
 from keras.preprocessing import sequence
-from keras.models import Sequential
-from keras.layers.embeddings import Embedding
-from keras.layers.recurrent import GRU
-from keras.layers.core import Dropout, Dense
 from keras.optimizers import Adam
-from sklearn.cross_validation import KFold
 
 
 FEATS_FILE = "data/feats/transc.txt"
@@ -58,15 +52,8 @@ with open(FEATS_FILE) as ff:
 
 print("Building model...", end="")
 sys.stdout.flush()
-model = Sequential()
-model.add(Embedding(input_dim=VOCAB_SIZE, output_dim=EMBEDDING_SIZE,
-                    input_length=MAX_FEATS))
-model.add(GRU(output_dim=HIDDEN_LAYER_SIZE, activation="tanh",
-              return_sequences=True))
-model.add(Dropout(DROPOUT_PROB))
-model.add(GRU(output_dim=HIDDEN_LAYER_SIZE, activation="tanh"))
-model.add(Dropout(DROPOUT_PROB))
-model.add(Dense(output_dim=1, activation="sigmoid"))
+model = GRU2(VOCAB_SIZE, EMBEDDING_SIZE, MAX_FEATS, HIDDEN_LAYER_SIZE,
+             DROPOUT_PROB)
 model.compile(optimizer=Adam(lr=args.lr, clipvalue=GRAD_CLIP),
               loss="binary_crossentropy",
               class_mode="binary")

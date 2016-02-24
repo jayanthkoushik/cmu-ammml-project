@@ -12,7 +12,7 @@ import math
 from datetime import datetime
 
 import numpy as np
-from vgg16 import VGG16
+from models.vgg16 import VGG16
 from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint
 from scipy.misc import imread
