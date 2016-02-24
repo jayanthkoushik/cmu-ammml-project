@@ -27,31 +27,6 @@ DEFAULT_LEARNING_RATE = 0.0001
 DEFAULT_EPOCHS = 1
 DEFAULT_BATCH_SIZE = 100
 
-arg_parser = argparse.ArgumentParser()
-arg_parser.add_argument("--imdir", type=str, required=True)
-arg_parser.add_argument("--vgg-weights", type=str, required=True)
-arg_parser.add_argument("--save-path", type=str, required=True)
-arg_parser.add_argument("--lr", type=float, default=DEFAULT_LEARNING_RATE)
-arg_parser.add_argument("--epochs", type=int, default=DEFAULT_EPOCHS)
-arg_parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
-arg_parser.add_argument("--train", type=str, choices=["true", "false"],
-                        required=True)
-arg_parser.add_argument("--default-arch-weights", type=str,
-                        choices=["true", "false"], required=True)
-args = arg_parser.parse_args()
-
-print("Building model...", end="")
-sys.stdout.flush()
-default_arch_weights = args.default_arch_weights == "true"
-model = VGG16(args.vgg_weights, default_arch_weights)
-model.compile(optimizer=Adam(lr=args.lr, clipvalue=GRAD_CLIP),
-              loss="binary_crossentropy",
-              class_mode="binary")
-print("done")
-
-with open(PICKLED_LABEL_FILE, "rb") as lf:
-    labels_map = cPickle.load(lf)
-
 
 def generate_batch(batch_ims):
     """Generate a batch (X, y) from a list of images."""
@@ -143,57 +118,83 @@ def eval_model(model, batch_size, typ, imdir):
     return vid_acc, im_acc
 
 
-if args.train == "true":
-    date = str(datetime.now().date())
-    args.save_path = os.path.join(args.save_path, date)
-    os.makedirs(args.save_path)
+if __name__=="__main__":
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument("--imdir", type=str, required=True)
+    arg_parser.add_argument("--vgg-weights", type=str, required=True)
+    arg_parser.add_argument("--save-path", type=str, required=True)
+    arg_parser.add_argument("--lr", type=float, default=DEFAULT_LEARNING_RATE)
+    arg_parser.add_argument("--epochs", type=int, default=DEFAULT_EPOCHS)
+    arg_parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
+    arg_parser.add_argument("--train", type=str, choices=["true", "false"],
+                            required=True)
+    arg_parser.add_argument("--default-arch-weights", type=str,
+                            choices=["true", "false"], required=True)
+    args = arg_parser.parse_args()
 
-    train_generator = RandomBatchGenerator(args.batch_size, "train",
-                                           args.imdir)
-    val_generator = RandomBatchGenerator(args.batch_size, "val", args.imdir)
-    ckpt_clbk = ModelCheckpoint(
-        filepath=os.path.join(args.save_path, "checkpoint.h5"),
-        verbose=1,
-        save_best_only=False
-    )
-    history = model.fit_generator(
-        generator=train_generator,
-        samples_per_epoch=len(train_generator._ims),
-        nb_epoch=args.epochs,
-        verbose=1,
-        show_accuracy=True,
-        callbacks=[ckpt_clbk],
-        validation_data=val_generator,
-        nb_val_samples=len(val_generator._ims) // 4,
-        nb_worker=1
-    )
-
-train_vid_acc, train_im_acc = eval_model(model, args.batch_size, "train",
-                                         args.imdir)
-val_vid_acc, val_im_acc = eval_model(model, args.batch_size, "val", args.imdir)
-print("Training: video acc.: {}, image acc.: {}".format(train_vid_acc,
-                                                        train_im_acc))
-print("Validation: video acc.: {}, image acc.: {}".format(val_vid_acc,
-                                                          val_im_acc))
-
-if args.train == "true":
-    print("Saving...", end="")
+    print("Building model...", end="")
     sys.stdout.flush()
-    model.save_weights(os.path.join(args.save_path, "weights.h5"),
-                       overwrite=True)
-    print("\n".join(map(str, history.history["acc"])),
-        file=open(os.path.join(args.save_path, "accs.txt"), "w"))
-    print("\n".join(map(str, history.history["loss"])),
-        file=open(os.path.join(args.save_path, "losses.txt"), "w"))
-    summary = {
-        "learning_rate": args.lr,
-        "epochs": args.epochs,
-        "batch_size": args.batch_size,
-        "train_vid_acc": train_vid_acc,
-        "train_im_acc": train_im_acc,
-        "val_vid_acc": val_vid_acc,
-        "val_im_acc": val_im_acc
-    }
-    print(summary, file=open(os.path.join(args.save_path, "summary.txt"), "w"))
-    print("done.")
+    default_arch_weights = args.default_arch_weights == "true"
+    model = VGG16(args.vgg_weights, default_arch_weights)
+    model.compile(optimizer=Adam(lr=args.lr, clipvalue=GRAD_CLIP),
+                loss="binary_crossentropy",
+                class_mode="binary")
+    print("done")
+
+    with open(PICKLED_LABEL_FILE, "rb") as lf:
+        labels_map = cPickle.load(lf)
+
+    if args.train == "true":
+        date = str(datetime.now().date())
+        args.save_path = os.path.join(args.save_path, date)
+        os.makedirs(args.save_path)
+
+        train_generator = RandomBatchGenerator(args.batch_size, "train",
+                                            args.imdir)
+        val_generator = RandomBatchGenerator(args.batch_size, "val", args.imdir)
+        ckpt_clbk = ModelCheckpoint(
+            filepath=os.path.join(args.save_path, "checkpoint.h5"),
+            verbose=1,
+            save_best_only=False
+        )
+        history = model.fit_generator(
+            generator=train_generator,
+            samples_per_epoch=len(train_generator._ims),
+            nb_epoch=args.epochs,
+            verbose=1,
+            show_accuracy=True,
+            callbacks=[ckpt_clbk],
+            validation_data=val_generator,
+            nb_val_samples=len(val_generator._ims) // 4,
+            nb_worker=1
+        )
+
+    train_vid_acc, train_im_acc = eval_model(model, args.batch_size, "train",
+                                            args.imdir)
+    val_vid_acc, val_im_acc = eval_model(model, args.batch_size, "val", args.imdir)
+    print("Training: video acc.: {}, image acc.: {}".format(train_vid_acc,
+                                                            train_im_acc))
+    print("Validation: video acc.: {}, image acc.: {}".format(val_vid_acc,
+                                                            val_im_acc))
+
+    if args.train == "true":
+        print("Saving...", end="")
+        sys.stdout.flush()
+        model.save_weights(os.path.join(args.save_path, "weights.h5"),
+                        overwrite=True)
+        print("\n".join(map(str, history.history["acc"])),
+            file=open(os.path.join(args.save_path, "accs.txt"), "w"))
+        print("\n".join(map(str, history.history["loss"])),
+            file=open(os.path.join(args.save_path, "losses.txt"), "w"))
+        summary = {
+            "learning_rate": args.lr,
+            "epochs": args.epochs,
+            "batch_size": args.batch_size,
+            "train_vid_acc": train_vid_acc,
+            "train_im_acc": train_im_acc,
+            "val_vid_acc": val_vid_acc,
+            "val_im_acc": val_im_acc
+        }
+        print(summary, file=open(os.path.join(args.save_path, "summary.txt"), "w"))
+        print("done.")
 
