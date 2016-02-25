@@ -54,19 +54,22 @@ class RandomBatchGenerator(object):
 
     """Generate random batches of data."""
 
-    def __init__(self, batch_size, typ, imdir):
+    def __init__(self, batch_size, typ, imdir, augment):
         # typ should be "train", "val", or "test".
         self._batch_size = batch_size
         self._ims = []
         self._idx = 0
-        self._datagen = ImageDataGenerator(
-            rotation_range=30,
-            width_shift_range=0.25,
-            height_shift_range=0.25,
-            shear_range=0.1,
-            horizontal_flip=True,
-            vertical_flip=True
-        )
+        if augment is True:
+            self._datagen = ImageDataGenerator(
+                rotation_range=30,
+                width_shift_range=0.25,
+                height_shift_range=0.25,
+                shear_range=0.1,
+                horizontal_flip=True,
+                vertical_flip=True
+            )
+        else:
+            self._datagen = None
         vids_file = os.path.join(SPLIT_DIR, "{}.txt".format(typ))
         with open(vids_file) as vf:
             for line in vf:
@@ -79,12 +82,15 @@ class RandomBatchGenerator(object):
     def next(self):
         batch_ims = random.sample(self._ims, self._batch_size)
         batch_X, batch_y = generate_batch(batch_ims)
-        return next(self._datagen.flow(
-            X=batch_X,
-            y=batch_y,
-            batch_size=self._batch_size,
-            shuffle=False
-        ))
+        if self._datagen is None:
+            return batch_X, batch_y
+        else:
+            return next(self._datagen.flow(
+                X=batch_X,
+                y=batch_y,
+                batch_size=self._batch_size,
+                shuffle=False
+            ))
 
 
 class VidBatchGenerator(object):
@@ -153,6 +159,7 @@ if __name__=="__main__":
                             required=True)
     arg_parser.add_argument("--default-arch-weights", type=str,
                             choices=["true", "false"], required=True)
+    arg_parser.add_argument("--augment", type=bool, required=True)
     args = arg_parser.parse_args()
 
     print("Building model...", end="")
@@ -170,8 +177,9 @@ if __name__=="__main__":
         os.makedirs(args.save_path)
 
         train_generator = RandomBatchGenerator(args.batch_size, "train",
-                                            args.imdir)
-        val_generator = RandomBatchGenerator(args.batch_size, "val", args.imdir)
+                                               args.imdir, args.augment)
+        val_generator = RandomBatchGenerator(args.batch_size, "val",
+                                             args.imdir, args.augment)
         ckpt_clbk = ModelCheckpoint(
             filepath=os.path.join(args.save_path, "checkpoint.h5"),
             verbose=1,
