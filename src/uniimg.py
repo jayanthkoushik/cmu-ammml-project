@@ -61,6 +61,11 @@ class RandomBatchGenerator(object):
         self._idx = 0
         if augment is True:
             self._datagen = ImageDataGenerator(
+                featurewise_center=False,
+                samplewise_center=False,
+                featurewise_std_normalization=False,
+                samplewise_std_normalization=False,
+                zca_whitening=False,
                 rotation_range=30,
                 width_shift_range=0.25,
                 height_shift_range=0.25,
