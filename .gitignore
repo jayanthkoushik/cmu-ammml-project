@@ -1,3 +1,7 @@
+/data/vgg16_weights.h5
+/data/GoogleNews-vectors-negative300.bin
+/data/KeyFrames
+/data/Cropped_Faces_POM
 ### Windows template
 # Windows image file caches
 Thumbs.db
