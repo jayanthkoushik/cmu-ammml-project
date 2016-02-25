@@ -159,7 +159,8 @@ if __name__=="__main__":
                             required=True)
     arg_parser.add_argument("--default-arch-weights", type=str,
                             choices=["true", "false"], required=True)
-    arg_parser.add_argument("--augment", type=bool, required=True)
+    arg_parser.add_argument("--augment", type=str,
+                            choices=["true", "false"], required=True)
     args = arg_parser.parse_args()
 
     print("Building model...", end="")
@@ -177,9 +178,9 @@ if __name__=="__main__":
         os.makedirs(args.save_path)
 
         train_generator = RandomBatchGenerator(args.batch_size, "train",
-                                               args.imdir, args.augment)
+                                               args.imdir, args.augment=="true")
         val_generator = RandomBatchGenerator(args.batch_size, "val",
-                                             args.imdir, args.augment)
+                                             args.imdir, args.augment=="true")
         ckpt_clbk = ModelCheckpoint(
             filepath=os.path.join(args.save_path, "checkpoint.h5"),
             verbose=1,
