@@ -15,6 +15,7 @@ import numpy as np
 from models.vgg16 import VGG16
 from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint
+from keras.preprocessing.image import ImageDataGenerator
 from scipy.misc import imread
 
 
@@ -58,6 +59,14 @@ class RandomBatchGenerator(object):
         self._batch_size = batch_size
         self._ims = []
         self._idx = 0
+        self._datagen = ImageDataGenerator(
+            rotation_range=30,
+            width_shift_range=0.25,
+            height_shift_range=0.25,
+            shear_range=0.1,
+            horizontal_flip=True,
+            vertical_flip=True
+        )
         vids_file = os.path.join(SPLIT_DIR, "{}.txt".format(typ))
         with open(vids_file) as vf:
             for line in vf:
@@ -69,7 +78,13 @@ class RandomBatchGenerator(object):
 
     def next(self):
         batch_ims = random.sample(self._ims, self._batch_size)
-        return generate_batch(batch_ims)
+        batch_X, batch_y = generate_batch(batch_ims)
+        return next(self._datagen.flow(
+            X=batch_X,
+            y=batch_y,
+            batch_size=self._batch_size,
+            shuffle=False
+        ))
 
 
 class VidBatchGenerator(object):
