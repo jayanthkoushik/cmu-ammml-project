@@ -1,1 +1,1 @@
-{'epochs': 10, 'learning_rate': 0.0001, 'final_accuracy': 0.080000000000000002, 'batch_size': 25, 'train_vid_acc': 1.0, 'train_im_acc': 0.998846835683, 'val_vid_acc': 0.606060606061, 'val_im_acc': 0.545191379865}
+{'epochs': 10, 'learning_rate': 0.0001, 'batch_size': 25, 'train_vid_acc': 1.0, 'train_im_acc': 0.998846835683, 'val_vid_acc': 0.606060606061, 'val_im_acc': 0.545191379865}
