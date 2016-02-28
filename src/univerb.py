@@ -8,7 +8,7 @@ import os
 from collections import defaultdict
 
 import numpy as np
-from models.gru2 import GRU2
+from models.grutiny import GRU_TINY
 from datetime import datetime
 from keras.preprocessing import sequence
 from keras.optimizers import Adam
@@ -17,13 +17,11 @@ from keras.optimizers import Adam
 FEATS_FILE = "data/feats/transc.txt"
 SAVE_PATH = "data/saves/univerb/"
 SPLIT_DIR = "data/perssplit"
-EMBEDDING_SIZE = 256
-HIDDEN_LAYER_SIZE = 256
-DROPOUT_PROB = 0.5
+EMBEDDING_SIZE = 5
+HIDDEN_LAYER_SIZE = 50
 MAX_FEATS = 1000
 DEFAULT_EPOCHS = 1
 DEFAULT_BATCH_SIZE = 100
-VALIDATION = 10
 VOCAB_SIZE = 7987
 DEFAULT_LEARNING_RATE = 0.0001
 GRAD_CLIP = 5
@@ -63,8 +61,7 @@ if __name__=="__main__":
 
     print("Building model...", end="")
     sys.stdout.flush()
-    model = GRU2(VOCAB_SIZE, EMBEDDING_SIZE, MAX_FEATS, HIDDEN_LAYER_SIZE,
-                 DROPOUT_PROB)
+    model = GRU_TINY(VOCAB_SIZE, EMBEDDING_SIZE, MAX_FEATS, HIDDEN_LAYER_SIZE)
     model.compile(optimizer=Adam(lr=args.lr, clipvalue=GRAD_CLIP),
                   loss="binary_crossentropy",
                   class_mode="binary")
@@ -73,10 +70,12 @@ if __name__=="__main__":
     history = model.fit(Xs["train"], ys["train"], batch_size=args.batch_size,
                         nb_epoch=args.epochs, show_accuracy=True)
 
-    _, acc = model.evaluate(Xs["val"], ys["val"], batch_size=args.batch_size,
-                            show_accuracy=True)
-
-    print("Validation set test accuracy: {}".format(acc))
+    _, train_acc = model.evaluate(Xs["train"], ys["train"],
+                                  batch_size=args.batch_size,
+                                  show_accuracy=True)
+    _, val_acc = model.evaluate(Xs["val"], ys["val"], batch_size=args.batch_size,
+                                show_accuracy=True)
+    print("Accuracy: train: {}; val: {}".format(train_acc, val_acc))
 
     fold_save_dir = os.path.join(SAVE_PATH, "{}".format(datetime.now()))
     if not os.path.exists(fold_save_dir):
@@ -95,8 +94,8 @@ if __name__=="__main__":
         "embedding_size": EMBEDDING_SIZE,
         "max_feats": MAX_FEATS,
         "hidden_layer_size": HIDDEN_LAYER_SIZE,
-        "dropout_prob": DROPOUT_PROB,
-        "final_accuracy": acc
+        "train_acc": train_acc,
+        "val_acc": val_acc
     }
     print(summary, file=open(os.path.join(fold_save_dir, "summary.txt"), "w"))
 
