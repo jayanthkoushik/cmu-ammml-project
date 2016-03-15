@@ -220,6 +220,7 @@ if __name__=="__main__":
             nb_worker=1
         )
 
+        model.save_weights(os.path.join(save_path, "weights.h5"), overwrite=True)
         print("\n".join(map(str, history.history["acc"])), file=open(os.path.join(save_path, "epoch_train_accs.txt"), "w"))
         print("\n".join(map(str, history.history["loss"])), file=open(os.path.join(save_path, "epoch_train_losses.txt"), "w"))
         print("\n".join(map(str, batch_hist_clbk.accs)), file=open(os.path.join(save_path, "batch_accs.txt"), "w"))
