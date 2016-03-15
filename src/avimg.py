@@ -108,8 +108,8 @@ class BatchLossHistory(Callback):
         self.accs = []
 
     def on_batch_end(self, batch, logs={}):
-        self.losses.append(logs.get("loss")[0])
-        self.accs.append(logs.get("acc")[0])
+        self.losses.append(logs.get("loss"))
+        self.accs.append(logs.get("acc"))
 
 
 if __name__=="__main__":
@@ -241,5 +241,5 @@ if __name__=="__main__":
             "batch_size": args.batch_size,
             "test_accuracy": test_acc,
         }
-        print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_train_accs.items())), file=open(os.path.join(base_save_dir, "summary.txt"), "w"))
+        print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), summary.items())), file=open(os.path.join(base_save_dir, "summary.txt"), "w"))
 
