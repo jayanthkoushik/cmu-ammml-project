@@ -108,8 +108,8 @@ class BatchLossHistory(Callback):
         self.accs = []
 
     def on_batch_end(self, batch, logs={}):
-        self.losses.append(logs.get("loss"))
-        self.accs.append(logs.get("acc"))
+        self.losses.append(logs.get("loss")[0])
+        self.accs.append(logs.get("acc")[0])
 
 
 if __name__=="__main__":
@@ -179,15 +179,15 @@ if __name__=="__main__":
             print("LR {} final train acc: {}; final val acc: {}".format(lr, final_train_accs[lr], final_val_accs[lr]))
 
             model.save_weights(os.path.join(save_path, "weights.h5"), overwrite=True)
-            print(history.history["acc"], file=open(os.path.join(save_path, "epoch_train_accs.txt"), "w"))
-            print(history.history["loss"], file=open(os.path.join(save_path, "epoch_train_losses.txt"), "w"))
-            print(history.history["val_acc"], file=open(os.path.join(save_path, "epoch_val_accs.txt"), "w"))
-            print(history.history["val_loss"], file=open(os.path.join(save_path, "epoch_val_losses.txt"), "w"))
-            print(batch_hist_clbk.accs, file=open(os.path.join(save_path, "batch_accs.txt"), "w"))
-            print(batch_hist_clbk.losses, file=open(os.path.join(save_path, "batch_losses.txt"), "w"))
+            print("\n".join(map(str, history.history["acc"])), file=open(os.path.join(save_path, "epoch_train_accs.txt"), "w"))
+            print("\n".join(map(str, history.history["loss"])), file=open(os.path.join(save_path, "epoch_train_losses.txt"), "w"))
+            print("\n".join(map(str, history.history["val_acc"])), file=open(os.path.join(save_path, "epoch_val_accs.txt"), "w"))
+            print("\n".join(map(str, history.history["val_loss"])), file=open(os.path.join(save_path, "epoch_val_losses.txt"), "w"))
+            print("\n".join(map(str, batch_hist_clbk.accs)), file=open(os.path.join(save_path, "batch_accs.txt"), "w"))
+            print("\n".join(map(str, batch_hist_clbk.losses)), file=open(os.path.join(save_path, "batch_losses.txt"), "w"))
 
-        print(final_train_accs, file=open(os.path.join(base_save_dir, "final_train_accs.txt"), "w"))
-        print(final_val_accs, file=open(os.path.join(base_save_dir, "final_val_accs.txt"), "w"))
+        print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_train_accs.items())), file=open(os.path.join(base_save_dir, "final_train_accs.txt"), "w"))
+        print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_val_accs.items())), file=open(os.path.join(base_save_dir, "final_val_accs.txt"), "w"))
         
         best_lr = max(final_val_accs, key=lambda x: final_val_accs[x])
         print("Best learning rate: {}".format(best_lr))
@@ -219,10 +219,10 @@ if __name__=="__main__":
             nb_worker=1
         )
 
-        print(history.history["acc"], file=open(os.path.join(save_path, "epoch_train_accs.txt"), "w"))
-        print(history.history["loss"], file=open(os.path.join(save_path, "epoch_train_losses.txt"), "w"))
-        print(batch_hist_clbk.accs, file=open(os.path.join(save_path, "batch_accs.txt"), "w"))
-        print(batch_hist_clbk.losses, file=open(os.path.join(save_path, "batch_losses.txt"), "w"))
+        print("\n".join(map(str, history.history["acc"])), file=open(os.path.join(save_path, "epoch_train_accs.txt"), "w"))
+        print("\n".join(map(str, history.history["loss"])), file=open(os.path.join(save_path, "epoch_train_losses.txt"), "w"))
+        print("\n".join(map(str, batch_hist_clbk.accs)), file=open(os.path.join(save_path, "batch_accs.txt"), "w"))
+        print("\n".join(map(str, batch_hist_clbk.losses)), file=open(os.path.join(save_path, "batch_losses.txt"), "w"))
 
     test_generator = RandomBatchGenerator(args.batch_size, ["test"], args.imdir, False, False)
 
@@ -241,5 +241,5 @@ if __name__=="__main__":
             "batch_size": args.batch_size,
             "test_accuracy": test_acc,
         }
-        print(summary, file=open(os.path.join(base_save_dir, "summary.txt"), "w"))
+        print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_train_accs.items())), file=open(os.path.join(base_save_dir, "summary.txt"), "w"))
 
