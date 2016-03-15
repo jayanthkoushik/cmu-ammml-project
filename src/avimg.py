@@ -74,10 +74,11 @@ class RandomBatchGenerator(object):
             )
         else:
             self._datagen = None
+        self._ims = []
         for typ in set(typs):
             vids_file = os.path.join(SPLIT_DIR, "{}.txt".format(typ))
             with open(vids_file) as vf:
-                self._ims = [os.path.join(imdir, line.strip() + ".jpg") for line in vf]
+                self._ims.extend([os.path.join(imdir, line.strip() + ".jpg") for line in vf])
 
     def __iter__(self):
         return self
@@ -157,7 +158,7 @@ if __name__=="__main__":
                 show_accuracy=True,
                 callbacks=[ckpt_clbk, batch_hist_clbk],
                 validation_data=val_generator,
-                nb_val_samples=len(val_generator._ims) // 4,
+                nb_val_samples=len(val_generator._ims),
                 nb_worker=1
             )
 
