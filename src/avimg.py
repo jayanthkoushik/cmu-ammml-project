@@ -7,6 +7,7 @@ import os
 import random
 import glob
 import cPickle
+import shutil
 from datetime import datetime
 
 import numpy as np
@@ -145,11 +146,14 @@ if __name__=="__main__":
     args = arg_parser.parse_args()
 
     default_arch_weights = args.default_arch_weights == "true"
-    date = str(datetime.now().date())
-    base_save_dir = os.path.join(args.save_path, date)
-    os.makedirs(base_save_dir)
 
     if args.train == "true":
+        date = str(datetime.now().date())
+        base_save_dir = os.path.join(args.save_path, date)
+        os.makedirs(base_save_dir)
+
+        shutil.copyfile(os.path.join(os.path.dirname(os.path.realpath(__file__)), "models", "vgg16.py"), os.path.join(base_save_dir, "vgg16.py"))
+
         final_train_perfs = {}
         final_val_perfs = {}
         for lr in args.lrs:
@@ -195,10 +199,12 @@ if __name__=="__main__":
             print("\n".join(map(str, batch_hist_clbk.accs)), file=open(os.path.join(save_path, "batch_accs.txt"), "w"))
             print("\n".join(map(str, batch_hist_clbk.losses)), file=open(os.path.join(save_path, "batch_losses.txt"), "w"))
 
+            os.remove(os.path.join(save_path, "checkpoint.h5"))
+
         print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_train_perfs.items())), file=open(os.path.join(base_save_dir, "final_train_perfs.txt"), "w"))
         print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_val_perfs.items())), file=open(os.path.join(base_save_dir, "final_val_perfs.txt"), "w"))
         
-        best_lr = max(final_val_accs, key=lambda x: final_val_perf[x]["f1"])
+        best_lr = max(final_val_perfs, key=lambda x: final_val_perfs[x]["f1"])
         print("Best learning rate: {}".format(best_lr))
     else:
         best_lr = DEFAULT_LEARNING_RATES[0]
@@ -233,6 +239,8 @@ if __name__=="__main__":
         print("\n".join(map(str, history.history["loss"])), file=open(os.path.join(save_path, "epoch_train_losses.txt"), "w"))
         print("\n".join(map(str, batch_hist_clbk.accs)), file=open(os.path.join(save_path, "batch_accs.txt"), "w"))
         print("\n".join(map(str, batch_hist_clbk.losses)), file=open(os.path.join(save_path, "batch_losses.txt"), "w"))
+
+        os.remove(os.path.join(save_path, "checkpoint.h5"))
 
     test_generator = RandomBatchGenerator(args.batch_size, ["test"], args.imdir, False, False)
     test_perf = eval_model(model, test_generator)
