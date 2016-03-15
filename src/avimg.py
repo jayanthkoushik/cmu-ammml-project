@@ -176,7 +176,7 @@ if __name__=="__main__":
                 show_accuracy=True,
                 verbose=2
             )
-            print("LR {} final train acc: {}; final val acc: {}".format(final_train_accs[lr], final_val_accs[lr]))
+            print("LR {} final train acc: {}; final val acc: {}".format(lr, final_train_accs[lr], final_val_accs[lr]))
 
             model.save_weights(os.path.join(save_path, "weights.h5"), overwrite=True)
             print(history.history["acc"], file=open(os.path.join(save_path, "epoch_train_accs.txt"), "w"))
@@ -241,5 +241,5 @@ if __name__=="__main__":
             "batch_size": args.batch_size,
             "test_accuracy": test_acc,
         }
-        print(summary, file=open(os.path.join(base_save_dir, "summary.txt")))
+        print(summary, file=open(os.path.join(base_save_dir, "summary.txt"), "w"))
 
