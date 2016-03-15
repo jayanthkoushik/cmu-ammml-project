@@ -14,6 +14,7 @@ from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint, Callback
 from keras.preprocessing.image import ImageDataGenerator
 from scipy.misc import imread
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 from models.vgg16 import VGG16
 
@@ -113,6 +114,23 @@ class BatchLossHistory(Callback):
         self.accs.append(logs.get("acc"))
 
 
+def eval_model(model, generator):
+    ys = []
+    preds = []
+    done = 0
+    while done < len(generator._ims):
+        X, y = next(generator)
+        pred = model.predict_classes(X=X, batch_size=generator._batch_size, verbose=0)
+        ys.extend(y)
+        preds.extend(pred)
+        done += generator._batch_size
+    acc = accuracy_score(ys, preds)
+    prec = precision_score(ys, preds)
+    rec = recall_score(ys, preds)
+    f1 = f1_score(ys, preds)
+    return {"acc": acc, "prec": prec, "rec": rec, "f1": f1}
+
+
 if __name__=="__main__":
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("--imdir", type=str, required=True)
@@ -132,8 +150,8 @@ if __name__=="__main__":
     os.makedirs(base_save_dir)
 
     if args.train == "true":
-        final_train_accs = {}
-        final_val_accs = {}
+        final_train_perfs = {}
+        final_val_perfs = {}
         for lr in args.lrs:
             print("LR: {}".format(lr))
             print("Building model")
@@ -165,19 +183,9 @@ if __name__=="__main__":
             fixed_train_generator = RandomBatchGenerator(args.batch_size, ["train"], args.imdir, False, False)
             fixed_val_generator = RandomBatchGenerator(args.batch_size, ["val"], args.imdir, False, False)
 
-            _, final_train_accs[lr] = model.evaluate_generator(
-                generator=fixed_train_generator,
-                val_samples=len(fixed_train_generator._ims),
-                show_accuracy=True,
-                verbose=2
-            )
-            _, final_val_accs[lr] = model.evaluate_generator(
-                generator=fixed_val_generator,
-                val_samples=len(fixed_val_generator._ims),
-                show_accuracy=True,
-                verbose=2
-            )
-            print("LR {} final train acc: {}; final val acc: {}".format(lr, final_train_accs[lr], final_val_accs[lr]))
+            final_train_perfs[lr] = eval_model(model, fixed_train_generator)
+            final_val_perfs[lr] = eval_model(model, fixed_val_generator)
+            print("LR {} final train perf: acc {}, f1 {}; final val perf: acc {}, f1 {}".format(lr, final_train_perfs[lr]["acc"], final_train_perfs[lr]["f1"], final_val_perfs[lr]["acc"], final_val_perfs[lr]["f1"]))
 
             model.save_weights(os.path.join(save_path, "weights.h5"), overwrite=True)
             print("\n".join(map(str, history.history["acc"])), file=open(os.path.join(save_path, "epoch_train_accs.txt"), "w"))
@@ -187,10 +195,10 @@ if __name__=="__main__":
             print("\n".join(map(str, batch_hist_clbk.accs)), file=open(os.path.join(save_path, "batch_accs.txt"), "w"))
             print("\n".join(map(str, batch_hist_clbk.losses)), file=open(os.path.join(save_path, "batch_losses.txt"), "w"))
 
-        print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_train_accs.items())), file=open(os.path.join(base_save_dir, "final_train_accs.txt"), "w"))
-        print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_val_accs.items())), file=open(os.path.join(base_save_dir, "final_val_accs.txt"), "w"))
+        print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_train_perfs.items())), file=open(os.path.join(base_save_dir, "final_train_perfs.txt"), "w"))
+        print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_val_perfs.items())), file=open(os.path.join(base_save_dir, "final_val_perfs.txt"), "w"))
         
-        best_lr = max(final_val_accs, key=lambda x: final_val_accs[x])
+        best_lr = max(final_val_accs, key=lambda x: final_val_perf[x]["f1"])
         print("Best learning rate: {}".format(best_lr))
     else:
         best_lr = DEFAULT_LEARNING_RATES[0]
@@ -227,21 +235,15 @@ if __name__=="__main__":
         print("\n".join(map(str, batch_hist_clbk.losses)), file=open(os.path.join(save_path, "batch_losses.txt"), "w"))
 
     test_generator = RandomBatchGenerator(args.batch_size, ["test"], args.imdir, False, False)
-
-    _, test_acc = model.evaluate_generator(
-        generator=test_generator,
-        val_samples=len(test_generator._ims),
-        show_accuracy=True,
-        verbose=2
-    )
-    print("Test acc: {}".format(test_acc))
+    test_perf = eval_model(model, test_generator)
+    print("Test perf: {}".format(test_perf))
 
     if args.train == "true":
         summary = {
             "best_lr": best_lr,
             "epochs": args.epochs,
             "batch_size": args.batch_size,
-            "test_accuracy": test_acc,
+            "test_perf": test_perf,
         }
         print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), summary.items())), file=open(os.path.join(base_save_dir, "summary.txt"), "w"))
 
