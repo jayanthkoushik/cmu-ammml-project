@@ -179,8 +179,10 @@ if __name__=="__main__":
             print("LR {} final train acc: {}; final val acc: {}".format(final_train_accs[lr], final_val_accs[lr]))
 
             model.save_weights(os.path.join(save_path, "weights.h5"), overwrite=True)
-            print(history.history["acc"], file=open(os.path.join(save_path, "epoch_accs.txt"), "w"))
-            print(history.history["loss"], file=open(os.path.join(save_path, "epoch_losses.txt"), "w"))
+            print(history.history["acc"], file=open(os.path.join(save_path, "epoch_train_accs.txt"), "w"))
+            print(history.history["loss"], file=open(os.path.join(save_path, "epoch_train_losses.txt"), "w"))
+            print(history.history["val_acc"], file=open(os.path.join(save_path, "epoch_val_accs.txt"), "w"))
+            print(history.history["val_loss"], file=open(os.path.join(save_path, "epoch_val_losses.txt"), "w"))
             print(batch_hist_clbk.accs, file=open(os.path.join(save_path, "batch_accs.txt"), "w"))
             print(batch_hist_clbk.losses, file=open(os.path.join(save_path, "batch_losses.txt"), "w"))
 
@@ -217,8 +219,8 @@ if __name__=="__main__":
             nb_worker=1
         )
 
-        print(history.history["acc"], file=open(os.path.join(save_path, "epoch_accs.txt"), "w"))
-        print(history.history["loss"], file=open(os.path.join(save_path, "epoch_losses.txt"), "w"))
+        print(history.history["acc"], file=open(os.path.join(save_path, "epoch_train_accs.txt"), "w"))
+        print(history.history["loss"], file=open(os.path.join(save_path, "epoch_train_losses.txt"), "w"))
         print(batch_hist_clbk.accs, file=open(os.path.join(save_path, "batch_accs.txt"), "w"))
         print(batch_hist_clbk.losses, file=open(os.path.join(save_path, "batch_losses.txt"), "w"))
 
