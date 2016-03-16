@@ -162,7 +162,7 @@ if __name__=="__main__":
             print("LR: {}".format(lr))
             print("Building model")
             model = VGG16(args.vgg_weights, default_arch_weights)
-            model.compile(optimizer=Adam(lr=lr), loss="binary_crossentropy", class_mode="binary")
+            model.compile(optimizer=Adam(lr=lr), loss="binary_crossentropy")
             print("Model built")
 
             save_path = os.path.join(base_save_dir, "lr{}".format(lr))
@@ -225,7 +225,7 @@ if __name__=="__main__":
     
     print("Building model")
     model = VGG16(args.vgg_weights, default_arch_weights)
-    model.compile(optimizer=Adam(lr=best_lr), loss="binary_crossentropy", class_mode="binary")
+    model.compile(optimizer=Adam(lr=best_lr), loss="binary_crossentropy")
     print("Model built")
 
     if args.train == "true":
