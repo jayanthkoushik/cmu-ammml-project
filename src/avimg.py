@@ -8,6 +8,8 @@ import random
 import glob
 import cPickle
 import shutil
+import gc
+import time
 from datetime import datetime
 
 import numpy as np
@@ -200,6 +202,18 @@ if __name__=="__main__":
             print("\n".join(map(str, batch_hist_clbk.losses)), file=open(os.path.join(save_path, "batch_losses.txt"), "w"))
 
             os.remove(os.path.join(save_path, "checkpoint.h5"))
+
+            print("Freeing memory")
+            del model
+            del train_generator
+            del val_generator
+            del ckpt_clbk
+            del batch_hist_clbk
+            del history
+            del fixed_train_generator
+            del fixed_val_generator
+            gc.collect()
+            time.sleep(60)
 
         print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_train_perfs.items())), file=open(os.path.join(base_save_dir, "final_train_perfs.txt"), "w"))
         print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_val_perfs.items())), file=open(os.path.join(base_save_dir, "final_val_perfs.txt"), "w"))
