@@ -59,7 +59,6 @@ class RandomBatchGenerator(object):
 
     def __init__(self, batch_size, typs, imdir, augment, randomize):
         # typs should be a list of "train", "val", or "test".
-        self._batch_size = batch_size
         self._randomize = randomize
         self._idx = 0
         if augment is True:
@@ -83,6 +82,7 @@ class RandomBatchGenerator(object):
             vids_file = os.path.join(SPLIT_DIR, "{}.txt".format(typ))
             with open(vids_file) as vf:
                 self._ims.extend([os.path.join(imdir, line.strip() + ".jpg") for line in vf])
+        self._batch_size = min([len(self._ims), batch_size])
 
     def __iter__(self):
         return self
@@ -248,8 +248,6 @@ if __name__=="__main__":
         print("\n".join(map(str, history.history["loss"])), file=open(os.path.join(save_path, "epoch_train_losses.txt"), "w"))
         print("\n".join(map(str, batch_hist_clbk.accs)), file=open(os.path.join(save_path, "batch_accs.txt"), "w"))
         print("\n".join(map(str, batch_hist_clbk.losses)), file=open(os.path.join(save_path, "batch_losses.txt"), "w"))
-
-        os.remove(os.path.join(save_path, "checkpoint.h5"))
 
     test_generator = RandomBatchGenerator(args.batch_size, ["test"], args.imdir, False, False)
     test_perf = eval_model(model, test_generator)
