@@ -5,8 +5,6 @@ from __future__ import print_function
 import argparse
 import os
 import cPickle
-import gc
-import time
 import shutil
 from datetime import datetime
 
@@ -36,7 +34,7 @@ class BatchLossHistory(Callback):
 
 
 def eval_model(model, batch_size, X, y):
-    pred = model.predict_classes(X=x, batch_size=batch_size, verbose=0)
+    pred = model.predict_classes(X=X, batch_size=batch_size, verbose=0)
     acc = accuracy_score(y, pred)
     prec = precision_score(y, pred)
     rec = recall_score(y, pred)
@@ -97,7 +95,7 @@ if args.train == "true":
     for lr in args.lrs:
         print("LR: {}".format(lr))
         print("Building model")
-        model = ShallowNet(args.weights, Xs["train"].shape[1])
+        model = ShallowNet(Xs["train"].shape[1], args.weights)
         model.compile(optimizer=Adam(lr=lr), loss="binary_crossentropy")
         print("Model built")
 
@@ -129,13 +127,6 @@ if args.train == "true":
         print("\n".join(map(str, batch_hist_clbk.accs)), file=open(os.path.join(save_path, "batch_accs.txt"), "w"))
         print("\n".join(map(str, batch_hist_clbk.losses)), file=open(os.path.join(save_path, "batch_losses.txt"), "w"))
 
-        print("Freeing memory")
-        del model
-        del batch_hist_clbk
-        del history
-        gc.collect()
-        time.sleep(60)
-
     print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_train_perfs.items())), file=open(os.path.join(base_save_dir, "final_train_perfs.txt"), "w"))
     print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_val_perfs.items())), file=open(os.path.join(base_save_dir, "final_val_perfs.txt"), "w"))
 
@@ -145,7 +136,7 @@ else:
     best_lr = 0.0001
 
 print("Building model")
-model = ShallowNet(args.weights, Xs["train"].shape[1])
+model = ShallowNet(Xs["train"].shape[1], args.weights)
 model.compile(optimizer=Adam(lr=best_lr), loss="binary_crossentropy")
 print("Model built")
 
@@ -159,8 +150,8 @@ if args.train == "true":
     batch_hist_clbk = BatchLossHistory()
 
     history = model.fit(
-        X=np.concatenate((Xs["train"], Xs["val"]))
-        y=np.concatenate((ys["train"], ys["val"]))
+        X=np.concatenate((Xs["train"], Xs["val"])),
+        y=np.concatenate((ys["train"], ys["val"])),
         batch_size=args.batch_size,
         nb_epoch=args.epochs,
         verbose=1,

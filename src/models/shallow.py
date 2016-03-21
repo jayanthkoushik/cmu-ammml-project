@@ -5,9 +5,9 @@ from keras.models import Sequential
 from keras.layers.core import Dense, Dropout
 
 
-def ShallowNet(input_shape, weights=None):
+def ShallowNet(input_dim, weights=None):
     model = Sequential()
-    model.add(Dense(100, input_shape=input_shape, activation="relu"))
+    model.add(Dense(100, input_dim=input_dim, activation="relu"))
     model.add(Dense(100, activation="relu"))
     model.add(Dense(1, activation="sigmoid"))
 
