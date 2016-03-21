@@ -1,5 +1,5 @@
 # coding=utf-8
-# shallow.py: Shallow 2 layer network.
+# shallow.py: Shallow n-layer network.
 
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout
