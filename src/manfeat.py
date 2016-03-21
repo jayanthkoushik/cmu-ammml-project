@@ -5,12 +5,11 @@ from __future__ import print_function
 import argparse
 import os
 import cPickle
-import shutil
+import itertools
 from datetime import datetime
 
 import numpy as np
 from keras.optimizers import Adam
-from keras.callbacks import Callback
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 from models.shallow import ShallowNet
@@ -21,16 +20,6 @@ SPLITS = ["train", "val", "test"]
 PICKLED_LABEL_FILE = "data/labels.pickle"
 PERS_FIELD_NAME = "Answer.q7_persuasive"
 MAN_FEATS_NAMES_FILENAME = "data/man_feats/names.txt"
-
-
-class BatchLossHistory(Callback):
-    def on_train_begin(self, logs={}):
-        self.losses = []
-        self.accs = []
-
-    def on_batch_end(self, batch, logs={}):
-        self.losses.append(logs.get("loss"))
-        self.accs.append(logs.get("acc"))
 
 
 def eval_model(model, batch_size, X, y):
@@ -45,11 +34,14 @@ def eval_model(model, batch_size, X, y):
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument("--feats-file", type=str, required=True)
 arg_parser.add_argument("--save-path", type=str, required=True)
-arg_parser.add_argument("--lrs", type=float, nargs="+", required=True)
-arg_parser.add_argument("--epochs", type=int, required=True)
 arg_parser.add_argument("--batch-size", type=int, required=True)
 arg_parser.add_argument("--train", type=str, choices=["true", "false"], required=True)
 arg_parser.add_argument("--weights", type=str, default=None)
+arg_parser.add_argument("--lr", type=float, nargs="+", required=True)
+arg_parser.add_argument("--epochs", type=int, nargs="+", required=True)
+arg_parser.add_argument("--dropout", type=float, nargs="+", required=True)
+arg_parser.add_argument("--dense-layers", type=int, nargs="+", required=True)
+arg_parser.add_argument("--dense-layer-units", type=int, nargs="+", required=True)
 args = arg_parser.parse_args()
 
 with open(PICKLED_LABEL_FILE, "rb") as lf:
@@ -92,78 +84,68 @@ if args.train == "true":
 
     final_train_perfs = {}
     final_val_perfs = {}
-    for lr in args.lrs:
-        print("LR: {}".format(lr))
+    for lr, epochs, dropout, dense_layers, dense_layer_units in itertools.product(args.lr, args.epochs, args.dropout, args.dense_layers, args.dense_layer_units):
+        params = lr, epochs, dropout, dense_layers, dense_layer_units
+        print("LR: {}, EPOCHS: {}, DROPOUT: {}, DENSE LAYERS: {}, DENSE_LAYER_UNITS: {}".format(*params))
         print("Building model")
-        model = ShallowNet(Xs["train"].shape[1], args.weights)
+        model = ShallowNet(Xs["train"].shape[1], dropout, dense_layers, dense_layer_units, args.weights)
         model.compile(optimizer=Adam(lr=lr), loss="binary_crossentropy")
         print("Model built")
 
-        save_path = os.path.join(base_save_dir, "lr{}".format(lr))
+        save_path = os.path.join(base_save_dir, "lr{};epochs{};dropout{};dense_layers{};dense_layer_units{}".format(*params))
         os.makedirs(save_path)
-
-        batch_hist_clbk = BatchLossHistory()
 
         history = model.fit(
             X=Xs["train"],
             y=ys["train"],
             batch_size=args.batch_size,
-            nb_epoch=args.epochs,
+            nb_epoch=epochs,
             verbose=1,
-            callbacks=[batch_hist_clbk],
             validation_data=(Xs["val"], ys["val"]),
             shuffle=True,
             show_accuracy=True,
         )
 
-        final_train_perfs[lr] = eval_model(model, args.batch_size, Xs["train"], ys["train"])
-        final_val_perfs[lr] = eval_model(model, args.batch_size, Xs["val"], ys["val"])
-        print("LR {} final train perf: acc {}, f1 {}; final val perf: acc {}, f1 {}".format(lr, final_train_perfs[lr]["acc"], final_train_perfs[lr]["f1"], final_val_perfs[lr]["acc"], final_val_perfs[lr]["f1"]))
+        final_train_perfs[params] = eval_model(model, args.batch_size, Xs["train"], ys["train"])
+        final_val_perfs[params] = eval_model(model, args.batch_size, Xs["val"], ys["val"])
+        print("final train perf: acc {}, f1 {}; final val perf: acc {}, f1 {}".format(final_train_perfs[params]["acc"], final_train_perfs[params]["f1"], final_val_perfs[params]["acc"], final_val_perfs[params]["f1"]))
 
-        print("\n".join(map(str, history.history["acc"])), file=open(os.path.join(save_path, "epoch_train_accs.txt"), "w"))
-        print("\n".join(map(str, history.history["loss"])), file=open(os.path.join(save_path, "epoch_train_losses.txt"), "w"))
-        print("\n".join(map(str, history.history["val_acc"])), file=open(os.path.join(save_path, "epoch_val_accs.txt"), "w"))
-        print("\n".join(map(str, history.history["val_loss"])), file=open(os.path.join(save_path, "epoch_val_losses.txt"), "w"))
-        print("\n".join(map(str, batch_hist_clbk.accs)), file=open(os.path.join(save_path, "batch_accs.txt"), "w"))
-        print("\n".join(map(str, batch_hist_clbk.losses)), file=open(os.path.join(save_path, "batch_losses.txt"), "w"))
+        print("\n".join(map(str, history.history["acc"])), file=open(os.path.join(save_path, "train_accs.txt"), "w"))
+        print("\n".join(map(str, history.history["loss"])), file=open(os.path.join(save_path, "train_losses.txt"), "w"))
+        print("\n".join(map(str, history.history["val_acc"])), file=open(os.path.join(save_path, "val_accs.txt"), "w"))
+        print("\n".join(map(str, history.history["val_loss"])), file=open(os.path.join(save_path, "val_losses.txt"), "w"))
 
     print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_train_perfs.items())), file=open(os.path.join(base_save_dir, "final_train_perfs.txt"), "w"))
     print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_val_perfs.items())), file=open(os.path.join(base_save_dir, "final_val_perfs.txt"), "w"))
 
-    best_lr = max(final_val_perfs, key=lambda x: final_val_perfs[x]["f1"])
-    print("Best learning rate: {}".format(best_lr))
+    best_params = max(final_val_perfs, key=lambda x: final_val_perfs[x]["f1"])
 else:
-    best_lr = 0.0001
+    best_params = (0.0001, 100, 0.5, 5, 5)
 
+best_lr, best_epochs, best_dropout, best_dense_layers, best_dense_layer_units = best_params
 print("Building model")
-model = ShallowNet(Xs["train"].shape[1], args.weights)
+model = ShallowNet(Xs["train"].shape[1], best_dropout, best_dense_layers, best_dense_layer_units, args.weights)
 model.compile(optimizer=Adam(lr=best_lr), loss="binary_crossentropy")
 print("Model built")
 
 if args.train == "true":
     print("Training best model on training and validation set")
-    save_path = os.path.join(base_save_dir, "best_lr")
+    save_path = os.path.join(base_save_dir, "best_params")
     os.makedirs(save_path)
-
-    shutil.copy(os.path.join(os.path.dirname(os.path.realpath(__file__)), "models", "shallow.py"), base_save_dir)
-
-    batch_hist_clbk = BatchLossHistory()
 
     history = model.fit(
         X=np.concatenate((Xs["train"], Xs["val"])),
         y=np.concatenate((ys["train"], ys["val"])),
         batch_size=args.batch_size,
-        nb_epoch=args.epochs,
+        nb_epoch=best_epochs,
         verbose=1,
-        callbacks=[batch_hist_clbk],
         shuffle=True,
         show_accuracy=True,
     )
 
+    model.save_weights(os.path.join(save_path, "weights.h5"), overwrite=True)
     print("\n".join(map(str, history.history["acc"])), file=open(os.path.join(save_path, "epoch_train_accs.txt"), "w"))
     print("\n".join(map(str, history.history["loss"])), file=open(os.path.join(save_path, "epoch_train_losses.txt"), "w"))
-    print("\n".join(map(str, batch_hist_clbk.accs)), file=open(os.path.join(save_path, "batch_accs.txt"), "w"))
-    print("\n".join(map(str, batch_hist_clbk.losses)), file=open(os.path.join(save_path, "batch_losses.txt"), "w"))
 
 test_perf = eval_model(model, args.batch_size, Xs["test"], ys["test"])
 print("Test perf: {}".format(test_perf))
@@ -171,7 +153,10 @@ print("Test perf: {}".format(test_perf))
 if args.train == "true":
     summary = {
         "best_lr": best_lr,
-        "epochs": args.epochs,
+        "best_epochs": best_epochs,
+        "best_dropout":  best_dropout,
+        "best_dense_layers": best_dense_layers,
+        "best_dense_layer_units": best_dense_layer_units,
         "batch_size": args.batch_size,
         "test_perf": test_perf,
     }
