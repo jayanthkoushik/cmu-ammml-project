@@ -34,7 +34,6 @@ def eval_model(model, batch_size, X, y):
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument("--feats-file", type=str, required=True)
 arg_parser.add_argument("--save-path", type=str, required=True)
-arg_parser.add_argument("--batch-size", type=int, required=True)
 arg_parser.add_argument("--train", type=str, choices=["true", "false"], required=True)
 arg_parser.add_argument("--weights", type=str, default=None)
 arg_parser.add_argument("--lr", type=float, nargs="+", required=True)
@@ -42,6 +41,7 @@ arg_parser.add_argument("--epochs", type=int, nargs="+", required=True)
 arg_parser.add_argument("--dropout", type=float, nargs="+", required=True)
 arg_parser.add_argument("--dense-layers", type=int, nargs="+", required=True)
 arg_parser.add_argument("--dense-layer-units", type=int, nargs="+", required=True)
+arg_parser.add_argument("--batch-size", type=int, nargs="+", required=True)
 args = arg_parser.parse_args()
 
 with open(PICKLED_LABEL_FILE, "rb") as lf:
@@ -84,21 +84,21 @@ if args.train == "true":
 
     final_train_perfs = {}
     final_val_perfs = {}
-    for lr, epochs, dropout, dense_layers, dense_layer_units in itertools.product(args.lr, args.epochs, args.dropout, args.dense_layers, args.dense_layer_units):
-        params = lr, epochs, dropout, dense_layers, dense_layer_units
-        print("LR: {}, EPOCHS: {}, DROPOUT: {}, DENSE LAYERS: {}, DENSE_LAYER_UNITS: {}".format(*params))
+    for lr, epochs, dropout, dense_layers, dense_layer_units, batch_size in itertools.product(args.lr, args.epochs, args.dropout, args.dense_layers, args.dense_layer_units, args.batch_size):
+        params = lr, epochs, dropout, dense_layers, dense_layer_units, batch_size
+        print("LR: {}, EPOCHS: {}, DROPOUT: {}, DENSE LAYERS: {}, DENSE_LAYER_UNITS: {}, BATCH_SIZE: {}".format(*params))
         print("Building model")
         model = ShallowNet(Xs["train"].shape[1], dropout, dense_layers, dense_layer_units, args.weights)
         model.compile(optimizer=Adam(lr=lr), loss="binary_crossentropy")
         print("Model built")
 
-        save_path = os.path.join(base_save_dir, "lr{};epochs{};dropout{};dense_layers{};dense_layer_units{}".format(*params))
+        save_path = os.path.join(base_save_dir, "lr{};epochs{};dropout{};dense_layers{};dense_layer_units{};batch_size{}".format(*params))
         os.makedirs(save_path)
 
         history = model.fit(
             X=Xs["train"],
             y=ys["train"],
-            batch_size=args.batch_size,
+            batch_size=batch_size,
             nb_epoch=epochs,
             verbose=1,
             validation_data=(Xs["val"], ys["val"]),
@@ -106,8 +106,8 @@ if args.train == "true":
             show_accuracy=True,
         )
 
-        final_train_perfs[params] = eval_model(model, args.batch_size, Xs["train"], ys["train"])
-        final_val_perfs[params] = eval_model(model, args.batch_size, Xs["val"], ys["val"])
+        final_train_perfs[params] = eval_model(model, batch_size, Xs["train"], ys["train"])
+        final_val_perfs[params] = eval_model(model, batch_size, Xs["val"], ys["val"])
         print("final train perf: acc {}, f1 {}; final val perf: acc {}, f1 {}".format(final_train_perfs[params]["acc"], final_train_perfs[params]["f1"], final_val_perfs[params]["acc"], final_val_perfs[params]["f1"]))
 
         print("\n".join(map(str, history.history["acc"])), file=open(os.path.join(save_path, "train_accs.txt"), "w"))
@@ -120,9 +120,9 @@ if args.train == "true":
 
     best_params = max(final_val_perfs, key=lambda x: final_val_perfs[x]["f1"])
 else:
-    best_params = (0.0001, 100, 0.5, 5, 5)
+    best_params = (0.0001, 100, 0.5, 5, 5, 100)
 
-best_lr, best_epochs, best_dropout, best_dense_layers, best_dense_layer_units = best_params
+best_lr, best_epochs, best_dropout, best_dense_layers, best_dense_layer_units, best_batch_size = best_params
 print("Building model")
 model = ShallowNet(Xs["train"].shape[1], best_dropout, best_dense_layers, best_dense_layer_units, args.weights)
 model.compile(optimizer=Adam(lr=best_lr), loss="binary_crossentropy")
@@ -136,7 +136,7 @@ if args.train == "true":
     history = model.fit(
         X=np.concatenate((Xs["train"], Xs["val"])),
         y=np.concatenate((ys["train"], ys["val"])),
-        batch_size=args.batch_size,
+        batch_size=best_batch_size,
         nb_epoch=best_epochs,
         verbose=1,
         shuffle=True,
@@ -144,10 +144,10 @@ if args.train == "true":
     )
 
     model.save_weights(os.path.join(save_path, "weights.h5"), overwrite=True)
-    print("\n".join(map(str, history.history["acc"])), file=open(os.path.join(save_path, "epoch_train_accs.txt"), "w"))
-    print("\n".join(map(str, history.history["loss"])), file=open(os.path.join(save_path, "epoch_train_losses.txt"), "w"))
+    print("\n".join(map(str, history.history["acc"])), file=open(os.path.join(save_path, "train_accs.txt"), "w"))
+    print("\n".join(map(str, history.history["loss"])), file=open(os.path.join(save_path, "train_losses.txt"), "w"))
 
-test_perf = eval_model(model, args.batch_size, Xs["test"], ys["test"])
+test_perf = eval_model(model, best_batch_size, Xs["test"], ys["test"])
 print("Test perf: {}".format(test_perf))
 
 if args.train == "true":
@@ -157,7 +157,7 @@ if args.train == "true":
         "best_dropout":  best_dropout,
         "best_dense_layers": best_dense_layers,
         "best_dense_layer_units": best_dense_layer_units,
-        "batch_size": args.batch_size,
+        "best_batch_size": best_batch_size,
         "test_perf": test_perf,
     }
     print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), summary.items())), file=open(os.path.join(base_save_dir, "summary.txt"), "w"))
