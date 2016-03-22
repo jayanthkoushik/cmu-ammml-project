@@ -47,7 +47,6 @@ arg_parser.add_argument("--dropout", type=float, nargs="+", required=True)
 arg_parser.add_argument("--dense-layers", type=int, nargs="+", required=True)
 arg_parser.add_argument("--dense-layer-units", type=int, nargs="+", required=True)
 arg_parser.add_argument("--batch-size", type=int, nargs="+", required=True)
-arg_parser.add_argument("--val-reps", type=int, required=True)
 arg_parser.add_argument("--ensemble-size", type=int, required=True)
 args = arg_parser.parse_args()
 
@@ -97,10 +96,9 @@ if args.train == "true":
         save_path = os.path.join(base_save_dir, "lr{};epochs{};dropout{};dense_layers{};dense_layer_units{};batch_size{}".format(*params))
         os.makedirs(save_path)
 
-        best_train_perf = None
-        best_val_perf = {"f1": 0}
-
-        for _ in range(args.val_reps):
+        train_preds = np.zeros((Xs["train"].shape[0], args.ensemble_size))
+        val_preds = np.zeros((Xs["val"].shape[0], args.ensemble_size))
+        for i in range(args.ensemble_size):
             print("Building model")
             model = ShallowNet(Xs["train"].shape[1], dropout, dense_layers, dense_layer_units, args.weights)
             model.compile(optimizer=Adam(lr=lr), loss="binary_crossentropy")
@@ -117,19 +115,22 @@ if args.train == "true":
                 show_accuracy=True,
             )
 
-            val_perf = eval_model(model, batch_size, Xs["val"], ys["val"])
-            if val_perf["f1"] > best_val_perf["f1"]:
-                best_val_perf = val_perf
-                best_train_perf = eval_model(model, batch_size, Xs["train"], ys["train"])
+            print("\n".join(map(str, history.history["acc"])), file=open(os.path.join(save_path, "train_accs{}.txt".format(i)), "w"))
+            print("\n".join(map(str, history.history["loss"])), file=open(os.path.join(save_path, "train_losses{}.txt".format(i)), "w"))
+            print("\n".join(map(str, history.history["val_acc"])), file=open(os.path.join(save_path, "val_accs.txt{}".format(i)), "w"))
+            print("\n".join(map(str, history.history["val_loss"])), file=open(os.path.join(save_path, "val_losses{}.txt".format(i)), "w"))
 
-        final_train_perfs[params] = best_train_perf
-        final_val_perfs[params] = best_val_perf
+            train_pred = model.predict_classes(X=Xs["train"], batch_size=batch_size, verbose=0)
+            train_preds[:, i] = train_pred[:, 0]
+            val_pred = model.predict_classes(X=Xs["val"], batch_size=batch_size, verbose=0)
+            val_preds[:, i] = val_pred[:, 0]
+
+        final_train_pred = mode(train_preds, axis=1).mode
+        final_val_pred = mode(val_preds, axis=1).mode
+        final_train_perfs[params] = eval_pred(ys["train"], final_train_pred)
+        final_val_perfs[params] = eval_pred(ys["val"], final_val_pred)
         print("final train perf: acc {}, f1 {}; final val perf: acc {}, f1 {}".format(final_train_perfs[params]["acc"], final_train_perfs[params]["f1"], final_val_perfs[params]["acc"], final_val_perfs[params]["f1"]))
 
-        print("\n".join(map(str, history.history["acc"])), file=open(os.path.join(save_path, "train_accs.txt"), "w"))
-        print("\n".join(map(str, history.history["loss"])), file=open(os.path.join(save_path, "train_losses.txt"), "w"))
-        print("\n".join(map(str, history.history["val_acc"])), file=open(os.path.join(save_path, "val_accs.txt"), "w"))
-        print("\n".join(map(str, history.history["val_loss"])), file=open(os.path.join(save_path, "val_losses.txt"), "w"))
 
     print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_train_perfs.items())), file=open(os.path.join(base_save_dir, "final_train_perfs.txt"), "w"))
     print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_val_perfs.items())), file=open(os.path.join(base_save_dir, "final_val_perfs.txt"), "w"))
