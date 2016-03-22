@@ -23,7 +23,7 @@ with open('data/feats/transc.txt', 'r') as file:
     with open('data/feats/tfidf.txt', 'w') as write_file:
         for transc in range(TRANSC_SIZE):
             sparse_tfidf_counts = [str(tfidf_counts[transc, i]) for i in range(VOCAB_SIZE)]
-            write_file.write(label + " " + " ".join(sparse_tfidf_counts))
+            write_file.write(",".join(sparse_tfidf_counts))
             write_file.write("\n")
 
         

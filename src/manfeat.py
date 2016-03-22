@@ -19,7 +19,6 @@ SPLIT_DIR = "data/perssplit"
 SPLITS = ["train", "val", "test"]
 PICKLED_LABEL_FILE = "data/labels.pickle"
 PERS_FIELD_NAME = "Answer.q7_persuasive"
-MAN_FEATS_NAMES_FILENAME = "data/man_feats/names.txt"
 
 
 def eval_model(model, batch_size, X, y):
@@ -33,6 +32,7 @@ def eval_model(model, batch_size, X, y):
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument("--feats-file", type=str, required=True)
+arg_parser.add_argument("--names-file", type=str, required=True)
 arg_parser.add_argument("--save-path", type=str, required=True)
 arg_parser.add_argument("--train", type=str, choices=["true", "false"], required=True)
 arg_parser.add_argument("--weights", type=str, default=None)
@@ -57,7 +57,7 @@ for split in SPLITS:
     Xs[split] = []
     ys[split] = []
 
-with open(MAN_FEATS_NAMES_FILENAME) as man_feats_names_file, open(args.feats_file) as feats_file:
+with open(args.names_file) as man_feats_names_file, open(args.feats_file) as feats_file:
     for name_line, feat_line in zip(man_feats_names_file, feats_file):
         name = name_line.strip()
         feats = map(float, feat_line.strip().split(","))
