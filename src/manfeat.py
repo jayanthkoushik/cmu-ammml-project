@@ -38,6 +38,7 @@ def eval_model(model, batch_size, X, y):
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument("--feats-file", type=str, required=True)
 arg_parser.add_argument("--names-file", type=str, required=True)
+arg_parser.add_argument("--sig-feats-file", type=str, default=None)
 arg_parser.add_argument("--save-path", type=str, required=True)
 arg_parser.add_argument("--train", type=str, choices=["true", "false"], required=True)
 arg_parser.add_argument("--weights", type=str, default=None)
@@ -78,6 +79,13 @@ with open(args.names_file) as man_feats_names_file, open(args.feats_file) as fea
 for split in SPLITS:
     Xs[split] = np.array(Xs[split])
     ys[split] = np.array(ys[split])
+
+if args.sig_feats_file is not None:
+    print("Selecting significant features")
+    with open(args.sig_feats_file) as sig_feats_file:
+        sig_feats = [int(line.strip()) - 1 for line in sig_feats_file]
+    for split in SPLITS:
+        Xs[split] = Xs[split][:, sig_feats]
 
 if args.train == "true":
     date = str(datetime.now().date())
