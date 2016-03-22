@@ -169,8 +169,6 @@ if args.train == "true":
         pred = model.predict_classes(X=Xs["test"], batch_size=batch_size, verbose=0)
         preds[:, i] = pred[:, 0]
 
-    print(preds)
-    exit(1)
     final_pred = mode(preds, axis=1).mode
     test_perf = eval_pred(ys["test"], final_pred)
 else:
