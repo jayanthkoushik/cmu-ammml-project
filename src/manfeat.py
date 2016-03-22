@@ -79,10 +79,6 @@ for split in SPLITS:
     Xs[split] = np.array(Xs[split])
     ys[split] = np.array(ys[split])
 
-xmean = np.mean(Xs["train"], axis=0)
-for split in SPLITS:
-    Xs[split] -= xmean
-
 if args.train == "true":
     date = str(datetime.now().date())
     base_save_dir = os.path.join(args.save_path, date)
@@ -130,7 +126,6 @@ if args.train == "true":
         final_train_perfs[params] = eval_pred(ys["train"], final_train_pred)
         final_val_perfs[params] = eval_pred(ys["val"], final_val_pred)
         print("final train perf: acc {}, f1 {}; final val perf: acc {}, f1 {}".format(final_train_perfs[params]["acc"], final_train_perfs[params]["f1"], final_val_perfs[params]["acc"], final_val_perfs[params]["f1"]))
-
 
     print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_train_perfs.items())), file=open(os.path.join(base_save_dir, "final_train_perfs.txt"), "w"))
     print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_val_perfs.items())), file=open(os.path.join(base_save_dir, "final_val_perfs.txt"), "w"))
@@ -190,7 +185,6 @@ if args.train == "true":
         "best_dense_layers": best_dense_layers,
         "best_dense_layer_units": best_dense_layer_units,
         "best_batch_size": best_batch_size,
-        "val_reps": args.val_reps,
         "ensemble_size": args.ensemble_size,
         "test_perf": test_perf
     }
