@@ -30,18 +30,13 @@ def eval_pred(y, pred):
     return {"acc": acc, "prec": prec, "rec": rec, "f1": f1}
 
 
-def eval_model(model, batch_size, X, y):
-    pred = model.predict_classes(X=X, batch_size=batch_size, verbose=0)
-    return eval_pred(y, pred)
-
-
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument("--feats-file", type=str, required=True)
 arg_parser.add_argument("--names-file", type=str, required=True)
 arg_parser.add_argument("--sig-feats-file", type=str, default=None)
 arg_parser.add_argument("--save-path", type=str, required=True)
 arg_parser.add_argument("--train", type=str, choices=["true", "false"], required=True)
-arg_parser.add_argument("--weights", type=str, default=None)
+arg_parser.add_argument("--weights", type=str, nargs="+", default=None)
 arg_parser.add_argument("--lr", type=float, nargs="+", required=True)
 arg_parser.add_argument("--epochs", type=int, nargs="+", required=True)
 arg_parser.add_argument("--dropout", type=float, nargs="+", required=True)
@@ -87,6 +82,9 @@ if args.sig_feats_file is not None:
     for split in SPLITS:
         Xs[split] = Xs[split][:, sig_feats]
 
+if args.weights is None:
+    args.weights = [None for _ in xrange(args.ensemble_size)]
+
 if args.train == "true":
     date = str(datetime.now().date())
     base_save_dir = os.path.join(args.save_path, date)
@@ -104,7 +102,7 @@ if args.train == "true":
         val_preds = np.zeros((Xs["val"].shape[0], args.ensemble_size))
         for i in range(args.ensemble_size):
             print("Building model")
-            model = ShallowNet(Xs["train"].shape[1], dropout, dense_layers, dense_layer_units, args.weights)
+            model = ShallowNet(Xs["train"].shape[1], dropout, dense_layers, dense_layer_units, args.weights[i])
             model.compile(optimizer=Adam(lr=lr), loss="binary_crossentropy")
             print("Model built")
 
@@ -140,7 +138,7 @@ if args.train == "true":
 
     best_params = max(final_val_perfs, key=lambda x: final_val_perfs[x]["f1"])
 else:
-    best_params = (0.0001, 100, 0.5, 5, 5, 100)
+    best_params = args.lr[0], args.epochs[0], args.dropout[0], args.dense_layers[0], args.dense_layer_units[0], args.batch_size[0]
 
 best_lr, best_epochs, best_dropout, best_dense_layers, best_dense_layer_units, best_batch_size = best_params
 
@@ -149,13 +147,17 @@ if args.train == "true":
     save_path = os.path.join(base_save_dir, "best_params")
     os.makedirs(save_path)
 
-    preds = np.zeros((Xs["test"].shape[0], args.ensemble_size))
-    for i in range(args.ensemble_size):
-        print("Building model")
-        model = ShallowNet(Xs["train"].shape[1], best_dropout, best_dense_layers, best_dense_layer_units, args.weights)
-        model.compile(optimizer=Adam(lr=best_lr), loss="binary_crossentropy")
-        print("Model built")
+print("Test labels:")
+print(list(ys["test"]))
 
+preds = np.zeros((Xs["test"].shape[0], args.ensemble_size))
+for i in range(args.ensemble_size):
+    print("Building model")
+    model = ShallowNet(Xs["train"].shape[1], best_dropout, best_dense_layers, best_dense_layer_units, args.weights[i])
+    model.compile(optimizer=Adam(lr=best_lr), loss="binary_crossentropy")
+    print("Model built")
+
+    if args.train == "true":
         history = model.fit(
             X=np.concatenate((Xs["train"], Xs["val"])),
             y=np.concatenate((ys["train"], ys["val"])),
@@ -170,19 +172,13 @@ if args.train == "true":
         print("\n".join(map(str, history.history["acc"])), file=open(os.path.join(save_path, "train_accs{}.txt".format(i)), "w"))
         print("\n".join(map(str, history.history["loss"])), file=open(os.path.join(save_path, "train_losses{}.txt".format(i)), "w"))
 
-        pred = model.predict_classes(X=Xs["test"], batch_size=batch_size, verbose=0)
-        preds[:, i] = pred[:, 0]
+    pred = model.predict_classes(X=Xs["test"], batch_size=best_batch_size, verbose=0)
+    preds[:, i] = pred[:, 0]
+    print("Prediction {}".format(i))
+    print([x[0] for x in pred])
 
-    final_pred = mode(preds, axis=1).mode
-    test_perf = eval_pred(ys["test"], final_pred)
-else:
-    print("Building model")
-    model = ShallowNet(Xs["train"].shape[1], best_dropout, best_dense_layers, best_dense_layer_units, args.weights)
-    model.compile(optimizer=Adam(lr=best_lr), loss="binary_crossentropy")
-    print("Model built")
-
-    test_perf = eval_model(model, best_batch_size, Xs["test"], ys["test"])
-
+final_pred = mode(preds, axis=1).mode
+test_perf = eval_pred(ys["test"], final_pred)
 print("Test perf: {}".format(test_perf))
 
 if args.train == "true":
