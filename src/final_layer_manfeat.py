@@ -120,29 +120,28 @@ if args.train == "true":
             show_accuracy=True,
         )
 
-        print("\n".join(map(str, history.history["acc"])), file=open(os.path.join(save_path, "train_accs{}.txt".format(i)), "w"))
-        print("\n".join(map(str, history.history["loss"])), file=open(os.path.join(save_path, "train_losses{}.txt".format(i)), "w"))
-        print("\n".join(map(str, history.history["val_acc"])), file=open(os.path.join(save_path, "val_accs.txt{}".format(i)), "w"))
-        print("\n".join(map(str, history.history["val_loss"])), file=open(os.path.join(save_path, "val_losses{}.txt".format(i)), "w"))
         model.layers.pop()
-        model.compile()
-        train_pred = model.predict_classes(X=Xs["train"], batch_size=batch_size, verbose=0)
-        train_preds[:, i] = train_pred[:, 0]
-        val_pred = model.predict_classes(X=Xs["val"], batch_size=batch_size, verbose=0)
-        val_preds[:, i] = val_pred[:, 0]
-        with open(args.last_layer_file) as layer_file:
-        	for value in train_pred[:,0]:
-        		layer_file.write(value)
-        		layer_file.write("\n")
-        	for value in val_pred[:,0]:
-        		layer_file.write(value)
-        		layer_file.write("\n")
-        with open(args.last_layer_file+".labels") as label_file:
+        model.compile(optimizer=Adam(lr=lr), loss="binary_crossentropy")
+        train_pred = model.predict(X=Xs["train"], batch_size=batch_size, verbose=0)
+        val_pred = model.predict(X=Xs["val"], batch_size=batch_size, verbose=0)
+        cou = 0
+        with open(args.last_layer_file, "w") as layer_file:
+        	for vec in train_pred:
+        	    layer_file.write(",".join([str(i) for i in vec]))
+        	    layer_file.write("\n")
+                    cou += 1
+        	for vec in val_pred:
+        	    layer_file.write(",".join([str(i) for i in vec]))
+        	    layer_file.write("\n")
+                    cou += 1
+        print(cou)
+
+        with open(args.last_layer_file+".labels", "w") as label_file:
         	for value in ys["train"]:
-        		label_file.write(value)
+        		label_file.write(str(value))
         		label_file.write("\n")
         	for value in ys["val"]:
-        		label_file.write(value)
+        		label_file.write(str(value))
         		label_file.write("\n")
         exit(1)
 
