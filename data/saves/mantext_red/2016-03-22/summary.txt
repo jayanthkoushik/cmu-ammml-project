@@ -1,0 +1,8 @@
+best_epochs: 800
+best_dense_layers: 5
+ensemble_size: 5
+best_dropout: 0.5
+best_lr: 0.0001
+best_dense_layer_units: 10
+best_batch_size: 300
+test_perf: {'acc': 0.94871794871794868, 'rec': 0.95833333333333337, 'prec': 0.95833333333333337, 'f1': 0.95833333333333337}
