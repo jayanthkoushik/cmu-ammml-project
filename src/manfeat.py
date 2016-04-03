@@ -11,6 +11,7 @@ from datetime import datetime
 import numpy as np
 from scipy.stats import mode
 from keras.optimizers import Adam
+from keras.callbacks import LearningRateScheduler
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 from models.shallow import ShallowNet
@@ -20,6 +21,8 @@ SPLIT_DIR = "data/perssplit"
 SPLITS = ["train", "val", "test"]
 PICKLED_LABEL_FILE = "data/labels.pickle"
 PERS_FIELD_NAME = "Answer.q7_persuasive"
+LR_DECREASE_AT = 0.8
+LR_DECREASE_BY = 10.0
 
 
 def eval_pred(y, pred):
@@ -30,13 +33,20 @@ def eval_pred(y, pred):
     return {"acc": acc, "prec": prec, "rec": rec, "f1": f1}
 
 
+def lr_schedule(total_epochs, base_lr, epoch):
+    if epoch >= total_epochs * LR_DECREASE_AT:
+        return base_lr / LR_DECREASE_BY
+    else:
+        return base_lr
+
+
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument("--feats-file", type=str, required=True)
 arg_parser.add_argument("--names-file", type=str, required=True)
 arg_parser.add_argument("--sig-feats-file", type=str, default=None)
 arg_parser.add_argument("--save-path", type=str, required=True)
 arg_parser.add_argument("--train", type=str, choices=["true", "false"], required=True)
-arg_parser.add_argument("--weights", type=str, nargs="+", default=None)
+arg_parser.add_argument("--weights", type=str, default=None)
 arg_parser.add_argument("--lr", type=float, nargs="+", required=True)
 arg_parser.add_argument("--epochs", type=int, nargs="+", required=True)
 arg_parser.add_argument("--dropout", type=float, nargs="+", required=True)
@@ -44,6 +54,7 @@ arg_parser.add_argument("--dense-layers", type=int, nargs="+", required=True)
 arg_parser.add_argument("--dense-layer-units", type=int, nargs="+", required=True)
 arg_parser.add_argument("--batch-size", type=int, nargs="+", required=True)
 arg_parser.add_argument("--ensemble-size", type=int, required=True)
+arg_parser.add_argument("--test-ensemble-size", type=int, required=True)
 args = arg_parser.parse_args()
 
 with open(PICKLED_LABEL_FILE, "rb") as lf:
@@ -82,9 +93,6 @@ if args.sig_feats_file is not None:
     for split in SPLITS:
         Xs[split] = Xs[split][:, sig_feats]
 
-if args.weights is None:
-    args.weights = [None for _ in xrange(args.ensemble_size)]
-
 if args.train == "true":
     date = str(datetime.now().date())
     base_save_dir = os.path.join(args.save_path, date)
@@ -98,11 +106,10 @@ if args.train == "true":
         save_path = os.path.join(base_save_dir, "lr{};epochs{};dropout{};dense_layers{};dense_layer_units{};batch_size{}".format(*params))
         os.makedirs(save_path)
 
-        train_preds = np.zeros((Xs["train"].shape[0], args.ensemble_size))
-        val_preds = np.zeros((Xs["val"].shape[0], args.ensemble_size))
+        best_val_perf = {"f1": 0}
         for i in range(args.ensemble_size):
             print("Building model")
-            model = ShallowNet(Xs["train"].shape[1], dropout, dense_layers, dense_layer_units, args.weights[i])
+            model = ShallowNet(Xs["train"].shape[1], dropout, dense_layers, dense_layer_units, args.weights)
             model.compile(optimizer=Adam(lr=lr), loss="binary_crossentropy")
             print("Model built")
 
@@ -115,22 +122,23 @@ if args.train == "true":
                 validation_data=(Xs["val"], ys["val"]),
                 shuffle=True,
                 show_accuracy=True,
+                callbacks=[LearningRateScheduler(lambda e: lr_schedule(epochs, lr, e))]
             )
 
             print("\n".join(map(str, history.history["acc"])), file=open(os.path.join(save_path, "train_accs{}.txt".format(i)), "w"))
             print("\n".join(map(str, history.history["loss"])), file=open(os.path.join(save_path, "train_losses{}.txt".format(i)), "w"))
-            print("\n".join(map(str, history.history["val_acc"])), file=open(os.path.join(save_path, "val_accs.txt{}".format(i)), "w"))
+            print("\n".join(map(str, history.history["val_acc"])), file=open(os.path.join(save_path, "val_accs{}.txt".format(i)), "w"))
             print("\n".join(map(str, history.history["val_loss"])), file=open(os.path.join(save_path, "val_losses{}.txt".format(i)), "w"))
 
-            train_pred = model.predict_classes(X=Xs["train"], batch_size=batch_size, verbose=0)
-            train_preds[:, i] = train_pred[:, 0]
             val_pred = model.predict_classes(X=Xs["val"], batch_size=batch_size, verbose=0)
-            val_preds[:, i] = val_pred[:, 0]
+            val_perf = eval_pred(ys["val"], val_pred)
+            if val_perf["f1"] >= best_val_perf["f1"]:
+                best_val_perf = val_perf
+                train_pred = model.predict_classes(X=Xs["train"], batch_size=batch_size, verbose=0)
+                best_train_perf = eval_pred(ys["train"], train_pred)
 
-        final_train_pred = mode(train_preds, axis=1).mode
-        final_val_pred = mode(val_preds, axis=1).mode
-        final_train_perfs[params] = eval_pred(ys["train"], final_train_pred)
-        final_val_perfs[params] = eval_pred(ys["val"], final_val_pred)
+        final_train_perfs[params] = best_train_perf
+        final_val_perfs[params] = best_val_perf
         print("final train perf: acc {}, f1 {}; final val perf: acc {}, f1 {}".format(final_train_perfs[params]["acc"], final_train_perfs[params]["f1"], final_val_perfs[params]["acc"], final_val_perfs[params]["f1"]))
 
     print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_train_perfs.items())), file=open(os.path.join(base_save_dir, "final_train_perfs.txt"), "w"))
@@ -143,45 +151,55 @@ else:
 best_lr, best_epochs, best_dropout, best_dense_layers, best_dense_layer_units, best_batch_size = best_params
 
 if args.train == "true":
-    print("Training ensemble on training and validation set")
     save_path = os.path.join(base_save_dir, "best_params")
     os.makedirs(save_path)
 
-print("Test labels:")
-print(list(ys["test"]))
+if args.train == "true":
+    best_val_perf = {"f1": 0}
+    for i in range(args.test_ensemble_size):
+        print("Building model")
+        model = ShallowNet(Xs["train"].shape[1], best_dropout, best_dense_layers, best_dense_layer_units, args.weights)
+        model.compile(optimizer=Adam(lr=best_lr), loss="binary_crossentropy")
+        print("Model built")
 
-preds = np.zeros((Xs["test"].shape[0], args.ensemble_size))
-for i in range(args.ensemble_size):
-    print("Building model")
-    model = ShallowNet(Xs["train"].shape[1], best_dropout, best_dense_layers, best_dense_layer_units, args.weights[i])
-    model.compile(optimizer=Adam(lr=best_lr), loss="binary_crossentropy")
-    print("Model built")
-
-    if args.train == "true":
         history = model.fit(
-            X=np.concatenate((Xs["train"], Xs["val"])),
-            y=np.concatenate((ys["train"], ys["val"])),
+            X=Xs["train"],
+            y=ys["train"],
             batch_size=best_batch_size,
             nb_epoch=best_epochs,
             verbose=1,
+            validation_data=(Xs["val"], ys["val"]),
             shuffle=True,
             show_accuracy=True,
+            callbacks=[LearningRateScheduler(lambda e: lr_schedule(best_epochs, best_lr, e))]
         )
 
-        model.save_weights(os.path.join(save_path, "weights{}.h5".format(i)), overwrite=True)
         print("\n".join(map(str, history.history["acc"])), file=open(os.path.join(save_path, "train_accs{}.txt".format(i)), "w"))
         print("\n".join(map(str, history.history["loss"])), file=open(os.path.join(save_path, "train_losses{}.txt".format(i)), "w"))
+        print("\n".join(map(str, history.history["val_acc"])), file=open(os.path.join(save_path, "val_accs{}.txt".format(i)), "w"))
+        print("\n".join(map(str, history.history["val_loss"])), file=open(os.path.join(save_path, "val_losses{}.txt".format(i)), "w"))
 
-    pred = model.predict_classes(X=Xs["test"], batch_size=best_batch_size, verbose=0)
-    preds[:, i] = pred[:, 0]
-    print("Prediction {}".format(i))
-    print([x[0] for x in pred])
+        val_pred = model.predict_classes(X=Xs["val"], batch_size=best_batch_size, verbose=0)
+        val_perf = eval_pred(ys["val"], val_pred)
+        if val_perf["f1"] >= best_val_perf["f1"]:
+            best_val_perf = val_perf
+            best_model = model
+else:
+    print("Building model")
+    best_model = ShallowNet(Xs["train"].shape[1], best_dropout, best_dense_layers, best_dense_layer_units, args.weights)
+    best_model.compile(optimizer=Adam(lr=best_lr), loss="binary_crossentropy")
+    print("Model built")
 
-final_pred = mode(preds, axis=1).mode
+final_pred = best_model.predict_classes(X=Xs["test"], batch_size=best_batch_size, verbose=0)
 test_perf = eval_pred(ys["test"], final_pred)
+print("Test labels:")
+print(list(ys["test"]))
+print("Predictions")
+print([x[0] for x in final_pred])
 print("Test perf: {}".format(test_perf))
 
 if args.train == "true":
+    best_model.save_weights(os.path.join(save_path, "best_weights.h5"), overwrite=True)
     summary = {
         "best_lr": best_lr,
         "best_epochs": best_epochs,
@@ -190,6 +208,7 @@ if args.train == "true":
         "best_dense_layer_units": best_dense_layer_units,
         "best_batch_size": best_batch_size,
         "ensemble_size": args.ensemble_size,
+        "test_ensemble_size": args.test_ensemble_size,
         "test_perf": test_perf
     }
     print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), summary.items())), file=open(os.path.join(base_save_dir, "summary.txt"), "w"))
