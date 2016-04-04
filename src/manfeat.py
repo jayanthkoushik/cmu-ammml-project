@@ -242,6 +242,15 @@ print("Test perf: {}".format(test_perf))
 
 if args.train == "true":
     best_model.save_weights(os.path.join(save_path, "best_weights.h5"), overwrite=True)
+    print(
+        "\n".join("{}: {}".format(x[0], x[1])
+            for x in zip(
+                ["lr", "epochs", "dropout", "dense_layers", "dense_layer_units", "batch_size"],
+                [args.lr, args.epochs, args.dropout, args.dense_layers, args.dense_layer_units, args.batch_size]
+            )
+        ),
+        file=open(os.path.join(base_save_dir, "cross_validation_params.txt"), "w")
+    )
     summary = {
         "best_lr": best_lr,
         "best_epochs": best_epochs,
