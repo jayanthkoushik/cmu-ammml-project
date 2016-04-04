@@ -6,6 +6,8 @@ import argparse
 import os
 import cPickle
 import itertools
+import sys
+from pickle import PicklingError
 from datetime import datetime
 
 import numpy as np
@@ -55,6 +57,7 @@ arg_parser.add_argument("--dense-layer-units", type=int, nargs="+", required=Tru
 arg_parser.add_argument("--batch-size", type=int, nargs="+", required=True)
 arg_parser.add_argument("--ensemble-size", type=int, required=True)
 arg_parser.add_argument("--test-ensemble-size", type=int, required=True)
+arg_parser.add_argument("--continue-dir", type=str, default=None)
 args = arg_parser.parse_args()
 
 with open(PICKLED_LABEL_FILE, "rb") as lf:
@@ -94,17 +97,50 @@ if args.sig_feats_file is not None:
         Xs[split] = Xs[split][:, sig_feats]
 
 if args.train == "true":
-    date = str(datetime.now().date())
-    base_save_dir = os.path.join(args.save_path, date)
-    os.makedirs(base_save_dir)
+    if not args.continue_dir:
+        date = str(datetime.now().date())
+        base_save_dir = os.path.join(args.save_path, date)
+        os.makedirs(base_save_dir)
+        os.makedirs(os.path.join(base_save_dir, "checkpoints"))
+        final_train_perfs = {}
+        final_val_perfs = {}
+    else:
+        base_save_dir = args.continue_dir
+        final_perfs = {}
+        for split in ["train", "val"]:
+            try:
+                with open(os.path.join(base_save_dir, "checkpoints", "final_{}_perfs_0.pickle".format(split)), "rb") as sf:
+                    final_perfs[split] = cPickle.load(sf)
+            except PicklingError:
+                try:
+                    with open(os.path.join(base_save_dir, "checkpoints", "final_{}_perf_1.pickle".format(split)), "rb") as sf:
+                        final_perfs[split] = cPickle.load(sf)
+                except PicklingError:
+                    print("Both copies of final_{}_perfs are corrupt. You're fucked dude! I'm out.".format(split))
+                    sys.exit(1)
+        final_train_perfs = final_perfs["train"]
+        final_val_perfs = final_perfs["val"]
 
-    final_train_perfs = {}
-    final_val_perfs = {}
+    print(
+        "\n".join("{}: {}".format(x[0], x[1])
+            for x in zip(
+                ["lr", "epochs", "dropout", "dense_layers", "dense_layer_units", "batch_size"],
+                [args.lr, args.epochs, args.dropout, args.dense_layers, args.dense_layer_units, args.batch_size]
+            )
+        ),
+        file=open(os.path.join(base_save_dir, "cross_validation_params.txt"), "w")
+    )
+
+    turn = 0
     for lr, epochs, dropout, dense_layers, dense_layer_units, batch_size in itertools.product(args.lr, args.epochs, args.dropout, args.dense_layers, args.dense_layer_units, args.batch_size):
         params = lr, epochs, dropout, dense_layers, dense_layer_units, batch_size
         print("LR: {}, EPOCHS: {}, DROPOUT: {}, DENSE LAYERS: {}, DENSE_LAYER_UNITS: {}, BATCH_SIZE: {}".format(*params))
+        if params in final_train_perfs and params in final_val_perfs:
+            print("Skipping: already have results")
+            continue
         save_path = os.path.join(base_save_dir, "lr{};epochs{};dropout{};dense_layers{};dense_layer_units{};batch_size{}".format(*params))
-        os.makedirs(save_path)
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
 
         best_val_perf = {"f1": 0}
         for i in range(args.ensemble_size):
@@ -140,6 +176,12 @@ if args.train == "true":
         final_train_perfs[params] = best_train_perf
         final_val_perfs[params] = best_val_perf
         print("final train perf: acc {}, f1 {}; final val perf: acc {}, f1 {}".format(final_train_perfs[params]["acc"], final_train_perfs[params]["f1"], final_val_perfs[params]["acc"], final_val_perfs[params]["f1"]))
+
+        with open(os.path.join(base_save_dir, "checkpoints", "final_train_perfs_{}.pickle".format(turn)), "wb") as sf:
+            cPickle.dump(final_train_perfs, sf)
+        with open(os.path.join(base_save_dir, "checkpoints", "final_val_perfs_{}.pickle".format(turn)), "wb") as sf:
+            cPickle.dump(final_val_perfs, sf)
+        turn = 1 - turn
 
     print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_train_perfs.items())), file=open(os.path.join(base_save_dir, "final_train_perfs.txt"), "w"))
     print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_val_perfs.items())), file=open(os.path.join(base_save_dir, "final_val_perfs.txt"), "w"))
