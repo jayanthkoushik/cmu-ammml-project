@@ -7,6 +7,7 @@ import os
 import cPickle
 import itertools
 import sys
+import glob
 from pickle import PicklingError
 from datetime import datetime
 
@@ -47,7 +48,7 @@ arg_parser.add_argument("--feats-file", type=str, required=True)
 arg_parser.add_argument("--names-file", type=str, required=True)
 arg_parser.add_argument("--sig-feats-file", type=str, default=None)
 arg_parser.add_argument("--save-path", type=str, required=True)
-arg_parser.add_argument("--train", type=str, choices=["true", "false"], required=True)
+arg_parser.add_argument("--mode", type=str, choices=["train", "aggregate", "test"], required=True)
 arg_parser.add_argument("--weights", type=str, default=None)
 arg_parser.add_argument("--lr", type=float, nargs="+", required=True)
 arg_parser.add_argument("--epochs", type=int, nargs="+", required=True)
@@ -58,6 +59,8 @@ arg_parser.add_argument("--batch-size", type=int, nargs="+", required=True)
 arg_parser.add_argument("--ensemble-size", type=int, required=True)
 arg_parser.add_argument("--test-ensemble-size", type=int, required=True)
 arg_parser.add_argument("--continue-dir", type=str, default=None)
+arg_parser.add_argument("--aggregation-dir", type=str, default=None)
+
 args = arg_parser.parse_args()
 
 with open(PICKLED_LABEL_FILE, "rb") as lf:
@@ -96,7 +99,7 @@ if args.sig_feats_file is not None:
     for split in SPLITS:
         Xs[split] = Xs[split][:, sig_feats]
 
-if args.train == "true":
+if args.mode == "train":
     if not args.continue_dir:
         date = str(datetime.now().date())
         base_save_dir = os.path.join(args.save_path, date)
@@ -183,20 +186,31 @@ if args.train == "true":
             cPickle.dump(final_val_perfs, sf)
         turn = 1 - turn
 
-    print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_train_perfs.items())), file=open(os.path.join(base_save_dir, "final_train_perfs.txt"), "w"))
-    print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), final_val_perfs.items())), file=open(os.path.join(base_save_dir, "final_val_perfs.txt"), "w"))
-
+    with open(os.path.join(base_save_dir, "final_train_perfs.pickle"), "wb") as  tf:
+        cPickle.dump(final_train_perfs, tf)
+    with open(os.path.join(base_save_dir, "final_val_perfs.pickle"), "wb") as vf:
+        cPickle.dump(final_val_perfs, vf)
+    sys.exit(0)
+elif args.mode == "aggregate":
+    final_train_perfs = {}
+    final_val_perfs = {}
+    for split in ["train", "val"]:
+        for fname in glob.iglob(os.path.join(args.aggregation_dir, "*", "*", "final_{}_perfs.pickle".format(split))):
+            with open(fname, "rb") as f:
+                d = cPickle.load(f)
+                if split == "train":
+                    final_train_perfs.update(d)
+                else:
+                    final_val_perfs.update(d)
     best_params = max(final_val_perfs, key=lambda x: final_val_perfs[x]["f1"])
 else:
     best_params = args.lr[0], args.epochs[0], args.dropout[0], args.dense_layers[0], args.dense_layer_units[0], args.batch_size[0]
 
 best_lr, best_epochs, best_dropout, best_dense_layers, best_dense_layer_units, best_batch_size = best_params
 
-if args.train == "true":
-    save_path = os.path.join(base_save_dir, "best_params")
+if args.mode == "aggregate":
+    save_path = args.save_path
     os.makedirs(save_path)
-
-if args.train == "true":
     best_val_perf = {"f1": 0}
     for i in range(args.test_ensemble_size):
         print("Building model")
@@ -240,7 +254,7 @@ print("Predictions")
 print([x[0] for x in final_pred])
 print("Test perf: {}".format(test_perf))
 
-if args.train == "true":
+if args.mode == "aggregate":
     best_model.save_weights(os.path.join(save_path, "best_weights.h5"), overwrite=True)
     summary = {
         "best_lr": best_lr,
@@ -253,4 +267,4 @@ if args.train == "true":
         "test_ensemble_size": args.test_ensemble_size,
         "test_perf": test_perf
     }
-    print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), summary.items())), file=open(os.path.join(base_save_dir, "summary.txt"), "w"))
+    print("\n".join(map(lambda x: "{}: {}".format(x[0], x[1]), summary.items())), file=open(os.path.join(save_path, "summary.txt"), "w"))
