@@ -145,7 +145,8 @@ if args.mode == "train":
         if not os.path.exists(save_path):
             os.makedirs(save_path)
 
-        best_val_perf = {"f1": 0}
+        av_train_perf = {"acc": 0, "prec": 0, "rec": 0, "f1": 0}
+        av_val_perf = {"acc": 0, "prec": 0, "rec": 0, "f1": 0}
         for i in range(args.ensemble_size):
             print("Building model")
             model = ShallowNet(Xs["train"].shape[1], dropout, dense_layers, dense_layer_units, args.weights)
@@ -169,15 +170,18 @@ if args.mode == "train":
             print("\n".join(map(str, history.history["val_acc"])), file=open(os.path.join(save_path, "val_accs{}.txt".format(i)), "w"))
             print("\n".join(map(str, history.history["val_loss"])), file=open(os.path.join(save_path, "val_losses{}.txt".format(i)), "w"))
 
+            train_pred = model.predict_classes(X=Xs["train"], batch_size=batch_size, verbose=0)
+            train_perf = eval_pred(ys["train"], train_pred)
+            for met in ["acc", "prec", "rec", "f1"]:
+                av_train_perf[met] += float(train_perf[met]) / args.ensemble_size
+
             val_pred = model.predict_classes(X=Xs["val"], batch_size=batch_size, verbose=0)
             val_perf = eval_pred(ys["val"], val_pred)
-            if val_perf["f1"] >= best_val_perf["f1"]:
-                best_val_perf = val_perf
-                train_pred = model.predict_classes(X=Xs["train"], batch_size=batch_size, verbose=0)
-                best_train_perf = eval_pred(ys["train"], train_pred)
+            for met in ["acc", "prec", "rec", "f1"]:
+                av_val_perf[met] += float(val_perf[met]) / args.ensemble_size
 
-        final_train_perfs[params] = best_train_perf
-        final_val_perfs[params] = best_val_perf
+        final_train_perfs[params] = av_train_perf
+        final_val_perfs[params] = av_val_perf
         print("final train perf: acc {}, f1 {}; final val perf: acc {}, f1 {}".format(final_train_perfs[params]["acc"], final_train_perfs[params]["f1"], final_val_perfs[params]["acc"], final_val_perfs[params]["f1"]))
 
         with open(os.path.join(base_save_dir, "checkpoints", "final_train_perfs_{}.pickle".format(turn)), "wb") as sf:
