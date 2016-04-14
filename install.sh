@@ -33,6 +33,7 @@ else
     pip install --upgrade git+git://github.com/Theano/Theano.git
 fi
 pip install --upgrade git+git://github.com/fchollet/keras.git
+pip install --upgrade keras==0.3.3
 pip install --upgrade ipython
 pip install --upgrade stsci.distutils
 pip install --upgrade stscipython
