@@ -1,0 +1,6 @@
+lr: [0.01]
+epochs: [100, 300, 600, 900, 1200]
+dropout: [0.0]
+dense_layers: [2, 3, 4, 5]
+dense_layer_units: [2, 4, 6, 8, 10]
+batch_size: [300]
